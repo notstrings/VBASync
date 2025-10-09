@@ -5,17 +5,17 @@ Option Private Module
 ' // //////////////////////////////////////////////////////////////////////////
 ' // テーブル操作
 ' // ・ListObject関連オブジェクト操作のヘルパモジュール
-' // ・ワークシートとテーブルは１対１に対応する事を原則とする
 ' // 20210901:初版
 ' // 20211006:テーブル行列の追加削除処理を追加
 ' // 202208xx:GetTableRows追加等
 ' // 20230523:Resize修正
 ' // 20240523:大きめのテコ入れ
+' // 202509XX:実用版
 
-' // テーブル操作 /////////////////////////////////////////
+' // テーブル全体 /////////////////////////////////////////////////////////////
 
 ' テーブル作成
-Function AddTable(ByVal oSheet As Worksheet, ByVal oRange As Range, Optional ByVal bHasHeader As Boolean = True) As ListObject
+Function AddTable(ByVal oSheet As Worksheet, ByVal oRange As Range, Optional ByVal sTable As String = "Table", Optional ByVal bHasHeader As Boolean = True) As ListObject
     Dim oRet As ListObject
     Set oRet = oSheet.ListObjects.Add(SourceType:=xlSrcRange, source:=oRange, XlListObjectHasHeaders:=IIf(bHasHeader, xlYes, xlNo))
     Set AddTable = oRet
@@ -28,18 +28,23 @@ Function AddTableWithRecordset(ByVal oSheet As Worksheet, ByVal oRange As Range,
 End Function
 
 ' テーブル削除
-Sub DelTable(ByVal oSheet As Worksheet)
-    GetTable(oSheet).Unlist
+Sub DelTable(ByVal oSheet As Worksheet, Optional ByVal lIndex As Long = 1)
+    GetTable(oSheet, lIndex).Unlist
 End Sub
 Sub DelTableByName(ByVal oSheet As Worksheet, Optional ByVal sTableName As String = "")
     GetTableByName(oSheet, sTableName).Unlist
 End Sub
 
-' テーブル取得
-Function GetTable(ByVal oSheet As Worksheet) As ListObject
+' テーブル取得(全)
+Function GetTables(ByVal oSheet As Worksheet, Optional ByVal lIndex As Long = 1) As ListObjects
+    Set GetTables = oSheet.ListObjects
+End Function
+
+' テーブル取得(単)
+Function GetTable(ByVal oSheet As Worksheet, Optional ByVal lIndex As Long = 1) As ListObject
     Dim oRet As ListObject
-    If oSheet.ListObjects.Count > 0 Then
-        Set oRet = oSheet.ListObjects(1)
+    If lIndex >= 1 And oSheet.ListObjects.Count >= lIndex Then
+        Set oRet = oSheet.ListObjects(lIndex)
     End If
     Set GetTable = oRet
 End Function
@@ -47,7 +52,7 @@ Function GetTableByName(ByVal oSheet As Worksheet, Optional ByVal sName As Strin
     Dim oRet As ListObject
     Dim elm As ListObject
     For Each elm In oSheet.ListObjects
-        If elm.Name Like sName Then
+        If elm.Name = sName Then
             Set oRet = elm
             Exit For
         End If
@@ -55,54 +60,65 @@ Function GetTableByName(ByVal oSheet As Worksheet, Optional ByVal sName As Strin
     Set GetTableByName = oRet
 End Function
 
-' // テーブル全体
-
-' テーブル全体取得      ■構造化参照：Range("テーブル名[#All]")
+' テーブル範囲全体＝構造化参照：Range("テーブル名[#All]")
 Function GetTableRng(ByVal oListObject As ListObject) As Range
     Set GetTableRng = oListObject.Range
 End Function
 
-' テーブルリサイズ
-Sub ExtendTable(ByVal oListObject As ListObject, ByVal lTop As Long, ByVal lLeft As Long, ByVal lBottom As Long, lRight)
-    Call oListObject.Resize(ExtendRange(oListObject, lTop, lLeft, lBottom, lRight))
+' テーブル範囲リサイズ
+Sub ExtendTableRng(ByVal oListObject As ListObject, ByVal lTop As Long, ByVal lLeft As Long, ByVal lBottom As Long, lRight)
+    Call oListObject.Resize(ExtendRange(oListObject.Range, lTop, lLeft, lBottom, lRight))
 End Sub
 
-' // テーブル全体の列操作
-' // ・全テーブル範囲制御(概念的にヘッダフッタを含む)
+' // テーブル列操作 ///////////////////////////////////////////////////////////
 
-' テーブル列数取得
+' テーブル列数
 Function GetTableColCnt(ByVal oListObject As ListObject) As Long
     GetTableColCnt = oListObject.ListColumns.Count
 End Function
 
-' テーブル列番号取得
+' テーブル列番号
 Function GetTableColIdx(ByVal oListObject As ListObject, ByVal sColumn As String) As Long
     GetTableColIdx = oListObject.ListColumns(sColumn).Index
 End Function
 
-' テーブル全列取得
-Function GetTableCols(ByVal oListObject As ListObject) As ListObject
+' テーブル列取得(全)
+Function GetTableCols(ByVal oListObject As ListObject) As ListColumns
     Set GetTableCols = oListObject.ListColumns
 End Function
 
-' テーブル列取得(ListColumn)
+' テーブル列取得(単)
 Function GetTableCol(ByVal oListObject As ListObject, ByVal sColumn As String) As ListColumn
-    Set GetTableCol = oListObject.ListColumns(sColumn)
+    Dim oRet As ListColumn
+    Dim elm As ListColumn
+    For Each elm In oListObject.ListColumns
+        If elm.Name = sColumn Then
+            Set oRet = elm
+            Exit For
+        End If
+    Next
+    Set GetTableCol = oRet
+End Function
+Function GetTableColbyIdx(ByVal oListObject As ListObject, ByVal lColIdx As Long) As ListColumn
+    Dim oRet As ListColumn
+    If lColIdx >= 1 And lColIdx <= oListObject.ListColumns.Count Then
+        Set oRet = oListObject.ListColumns(lColIdx)
+    End If
+    Set GetTableColbyIdx = oRet
 End Function
 
 ' テーブル列追加
-Function AddTableCol(ByVal oListObject As ListObject) As ListColumn
-    Set AddTableCol = oListObject.ListColumns.Add()
-End Function
-
-' テーブル列挿入
-Function InsTableCol(ByVal oListObject As ListObject, ByVal lPosition As Long, Optional ByVal sColumn As String = "") As ListColumn
+Function AddTableCol(ByVal oListObject As ListObject, Optional ByVal sColumn As String = "", Optional ByVal lColIdx As Long = 0) As ListColumn
     Dim oRet As ListColumn
-    Set oRet = oListObject.ListColumns.Add(lPosition)
-    If sColumn <> "" Then
-        oRet.Name = sColumn
+    If lColIdx >= 1 And lColIdx <= oListObject.ListColumns.Count Then
+        Set oRet = oListObject.ListColumns.Add(lColIdx)
+    Else
+        Set oRet = oListObject.ListColumns.Add()
     End If
-    Set InsTableCol = oRet
+    If sColumn <> "" Then
+        oRet.Name = GenUniqRowName(oListObject, sColumn, oRet.Name)
+    End If
+    Set AddTableCol = oRet
 End Function
 
 ' テーブル列削除(列名称)
@@ -115,15 +131,37 @@ Sub DelTableColbyIdx(ByVal oListObject As ListObject, ByVal lColIdx As Long)
     oListObject.ListColumns(lColIdx).Delete
 End Sub
 
-' // テーブル全体の行操作
-' // ・全テーブル範囲制御(概念的にヘッダフッタを含む)
+' テーブル内でユニークな列名を作成する
+Private Function GenUniqRowName(ByVal oListObject As ListObject, ByVal sName As String, ByVal sIgnore As String) As String
+    Dim txt As String
+    Dim idx As Long
+    txt = sName
+    idx = 2
+    Do
+        Dim fnd As Boolean: fnd = False
+        Dim elm As ListColumn
+        For Each elm In oListObject.ListColumns
+            If elm.Name = txt And elm.Name <> sIgnore Then
+                fnd = True
+                Exit For
+            End If
+        Next
+        If fnd Then
+            txt = sName & Format(idx, "00")
+            idx = idx + 1
+        End If
+    Loop While fnd = True
+    GenUniqRowName = txt
+End Function
+
+' // テーブル行操作 ///////////////////////////////////////////////////////////
 
 ' テーブル行数取得
 Function GetTableRowCnt(ByVal oListObject As ListObject) As Long
     GetTableRowCnt = oListObject.ListRows.Count
 End Function
 
-' テーブル全行取得
+' テーブル全行取得(ListRows)
 Function GetTableRows(ByVal oListObject As ListObject) As ListRows
     Set GetTableRows = oListObject.ListRows
 End Function
@@ -148,84 +186,153 @@ Sub DelTableRow(ByVal oListObject As ListObject, ByVal lPosition As Long)
     oListObject.ListRows(lPosition).Delete
 End Sub
 
-' テーブル全行消去
-Sub ClrTable(ByVal oListObject As ListObject)
-    If Not oListObject.DataBodyRange Is Nothing Then
-        oListObject.DataBodyRange.Delete
-    End If
-End Sub
+' // テーブルヘッダー /////////////////////////////////////////////////////////
+' // ・列タイトル行範囲※注意：ヘッダー非表示の場合は取得できない事
 
-' // テーブルヘッダー /////////////////////////////////
-' // ・列タイトルのコト
-
-' ヘッダ列数取得
-Function GetTableHeaderCnt(ByVal oListObject As ListObject) As Long
-    GetTableHeaderCnt = oListObject.HeaderRowRange.Count
-End Function
-
-' ヘッダ部全体取得      ■構造化参照：Range("テーブル名[#Header]")
+' ヘッダ部全体取得＝構造化参照：Range("テーブル名[#Header]")
 Function GetTableHeaderRng(ByVal oListObject As ListObject) As Range
     Set GetTableHeaderRng = oListObject.HeaderRowRange
 End Function
 
 ' ヘッダ部の指定セル取得(列名称)
 Function GetTableHeaderCell(ByVal oListObject As ListObject, ByVal sColumn As String) As Range
-    Set GetTableHeaderCell = oListObject.ListColumns(sColumn).Range(1, 1)
+    Dim oRet As Range
+    If Not oListObject.HeaderRowRange Is Nothing Then
+        Dim elm As Range
+        For Each elm In oListObject.HeaderRowRange
+            If elm.Text = sColumn Then
+                Set oRet = elm
+                Exit For
+            End If
+        Next
+    End If
+    Set GetTableHeaderCell = oRet
 End Function
 
 ' ヘッダ部の指定セル取得(列番号)
 Function GetTableHeaderCellbyIdx(ByVal oListObject As ListObject, ByVal lColIdx As Long) As Range
-    Set GetTableHeaderCellbyIdx = oListObject.HeaderRowRange(lColIdx)
+    Dim oRet As Range
+    If Not oListObject.HeaderRowRange Is Nothing Then
+        If lColIdx >= 1 And lColIdx <= oListObject.HeaderRowRange.Count Then
+            Set oRet = oListObject.HeaderRowRange(lColIdx)
+        End If
+    End If
+    Set GetTableHeaderCellbyIdx = oRet
 End Function
 
 ' ヘッダ部の指定セル取得(テーブル内任意セル)
-Function GetTableHeaderCellbyElm(ByVal oListObject As ListObject, ByVal oCell As Range) As Range
-    Set GetTableHeaderCellbyElm = Intersect(oListObject.HeaderRowRange, oCell.EntireColumn) ' 指定セル列とテーブルヘッダ領域の積集合を取った領域
+Function GetTableHeaderCellbyCell(ByVal oListObject As ListObject, ByVal oCell As Range) As Range
+    Dim oRet As Range
+    If Not oListObject.HeaderRowRange Is Nothing Then
+        Set oRet = IntersectRange(oListObject.HeaderRowRange, oCell.EntireColumn)
+    End If
+    Set GetTableHeaderCellbyCell = oRet
 End Function
 
-' // テーブルフッタ－ /////////////////////////////////
-' // ・集計行のコト
+' // テーブルフッタ－ /////////////////////////////////////////////////////////
+' // ・集計行範囲※注意；フッタ－非表示の場合は取得できない
 
-' フッタ列数取得
-Function GetTableFooterCnt(ByVal oListObject As ListObject) As Long
-    GetTableFooterCnt = oListObject.TotalsRowRange.Count
-End Function
-
-' フッタ部全体取得      ■構造化参照：Range("テーブル名[#Totals]")
+' フッタ部全体取得＝構造化参照：Range("テーブル名[#Totals]")
 Function GetTableFooterRng(ByVal oListObject As ListObject) As Range
     Set GetTableFooterRng = oListObject.TotalsRowRange
 End Function
 
 ' フッタ部の指定セル取得(列名称)
 Function GetTableFooterCell(ByVal oListObject As ListObject, ByVal sColumn As String) As Range
-    Set GetTableFooterCell = Intersect(oListObject.TotalsRowRange, oListObject.ListColumns(sColumn).Range)
+    Dim oRet As Range
+    If Not oListObject.TotalsRowRange Is Nothing Then
+        Dim elm As Range
+        For Each elm In oListObject.TotalsRowRange
+            If elm.Text = sColumn Then
+                Set oRet = elm
+                Exit For
+            End If
+        Next
+    End If
+    Set GetTableFooterCell = oRet
 End Function
 
 ' フッタ部の指定セル取得(列番号)
 Function GetTableFooterCellbyIdx(ByVal oListObject As ListObject, ByVal lColIdx As Long) As Range
-    Set GetTableFooterCellbyIdx = oListObject.TotalsRowRange(lColIdx)
+    Dim oRet As Range
+    If Not oListObject.TotalsRowRange Is Nothing Then
+        If lColIdx >= 1 And lColIdx <= oListObject.TotalsRowRange.Count Then
+            Set oRet = oListObject.TotalsRowRange(lColIdx)
+        End If
+    End If
+    Set GetTableFooterCellbyIdx = oRet
 End Function
 
 ' フッタ部の指定セル取得(テーブル内任意セル)
 Function GetTableFooterCellbyElm(ByVal oListObject As ListObject, ByVal oCell As Range) As Range
-    Set GetTableFooterCellbyElm = Intersect(oListObject.TotalsRowRange, oCell.EntireColumn) ' 指定セル列とテーブルヘッダ領域の積集合を取った領域
+    Dim oRet As Range
+    If Not oListObject.TotalsRowRange Is Nothing Then
+        Set oRet = IntersectRange(oListObject.TotalsRowRange, oCell.EntireColumn)
+    End If
+    Set GetTableFooterCellbyElm = oRet
 End Function
 
-' // テーブルデータ部 /////////////////////////////////
+' // テーブルデータ部 /////////////////////////////////////////////////////////
 
-' データ行数
-Function GetTableBodyCnt(ByVal oListObject As ListObject) As Long
-    GetTableBodyCnt = oListObject.ListRows.Count
+' データ行列数
+Function GetTableBodyColCnt(ByVal oListObject As ListObject) As Long
+    GetTableBodyColCnt = oListObject.ListColumns.Count
+End Function
+Function GetTableBodyRowCnt(ByVal oListObject As ListObject) As Long
+    GetTableBodyRowCnt = oListObject.ListRows.Count
 End Function
 
-' データ部全体          ■構造化参照：Range("テーブル名[#Data]")
+' テーブル座標系変換
+Function GetTableBodyRowIdx(ByVal oListObject As ListObject, ByVal oRange As Range) As Long
+    GetTableBodyRowIdx = oRange.Row - oListObject.DataBodyRange.Row + 1
+End Function
+Function GetTableBodyColIdx(ByVal oListObject As ListObject, ByVal oRange As Range) As Long
+    GetTableBodyColIdx = oRange.Column - oListObject.DataBodyRange.Column + 1
+End Function
+
+' データ範囲クリップ
+Function ClipTableBodyRange(ByVal oListObject As ListObject, ByVal oRange As Range) As Range
+    Set ClipTableBodyRange = IntersectRange(oListObject.DataBodyRange, oRange)
+End Function
+
+' データ部消去
+Sub ClrTableBody(ByVal oListObject As ListObject)
+    If Not oListObject.DataBodyRange Is Nothing Then
+        oListObject.DataBodyRange.Delete
+    End If
+End Sub
+
+' データ部全体＝構造化参照：Range("テーブル名[#Data]")
 Function GetTableBodyRng(ByVal oListObject As ListObject) As Range
     Set GetTableBodyRng = oListObject.DataBodyRange
 End Function
+'Sub sample()
+'    Dim oDataTable As ListObject
+'    Set oDataTable = GetTable(ThisWorkbook.ActiveSheet)
+'    If oDataTable Is Nothing Then Exit Sub                          ' テーブルがないので終了
+'    Dim oTarget As Range
+'    Set oTarget = Selection                                         ' テーブルに関係ないセル範囲
+'    Set oTarget = ClipTableBodyRange(oDataTable, oTarget)           ' テーブルに関係ないセル範囲をテーブル範囲内にクリップ
+'    If oTarget Is Nothing Then Exit Sub                             ' テーブル範囲外なので終了
+'    Dim lc As Long: lc = GetTableBodyColIdx(oDataTable, oTarget)    ' テーブル内部でのインデックス番号に変換
+'    Dim lr As Long: lr = GetTableBodyRowIdx(oDataTable, oTarget)    ' テーブル内部でのインデックス番号に変換
+'    GetTableBodyRng(oDataTable)(lr, lc) = "aaa"                     ' 位置指定アクセス
+'End Sub
 
 ' データ部の指定列
 Function GetTableBodyColRng(ByVal oListObject As ListObject, ByVal sColumn As String) As Range
     Set GetTableBodyColRng = oListObject.ListColumns(sColumn).DataBodyRange
+End Function
+Function GetTableBodyColRngSafe(ByVal oListObject As ListObject, ByVal sColumn As String) As Range
+    Dim oRet As Range
+    Dim elm As ListColumn
+    For Each elm In oListObject.ListColumns
+        If elm.Name = sColumn Then
+            Set oRet = elm.DataBodyRange
+            Exit For
+        End If
+    Next
+    Set GetTableBodyColRngSafe = oRet
 End Function
 
 ' データ部の指定行
@@ -237,55 +344,67 @@ End Function
 Function GetTableBodyCell(ByVal oListObject As ListObject, ByVal lRowIdx As Long, ByVal sColumn As String) As Range
     Set GetTableBodyCell = oListObject.ListColumns(sColumn).DataBodyRange(lRowIdx)
 End Function
-
-' データ部の指定セル(行番号/列番号)
-Function GetTableBodyCellByIdx(ByVal oListObject As ListObject, ByVal lRowIdx As Long, ByVal lColIdx As Long) As Range
-    Set GetTableBodyCellByIdx = oListObject.DataBodyRange.Cells(lRowIdx, lColIdx)
+Function GetTableBodyCellSafe(ByVal oListObject As ListObject, ByVal lRowIdx As Long, ByVal sColumn As String) As Range
+    Dim oRet As Range
+    Dim elm As ListColumn
+    For Each elm In oListObject.ListColumns
+        If elm.Name = sColumn Then
+            Set oRet = elm.DataBodyRange(lRowIdx)
+            Exit For
+        End If
+    Next
+    Set GetTableBodyCellSafe = oRet
 End Function
 
-' データ部の探索カラムに対応する結果カラムを返却
+' 探索
 
-' ルックアップ版
+' ルックアップ(１次元)
 Function LookupTableBody(ByVal oListObject As ListObject, ByVal sSearchCol As String, ByVal sResultCol As String, ByVal vSearchVal As Variant) As Variant
     Dim vRet As Variant
+    Dim vValues As Variant
+    vValues = oListObject.DataBodyRange.Value
     Dim lRow As Long
-    For lRow = 1 To oListObject.ListRows.Count
-        If oListObject.ListColumns(sSearchCol).DataBodyRange(lRow) = vSearchVal Then
-            vRet = oListObject.ListColumns(sResultCol).DataBodyRange(lRow)
+    For lRow = LBound(vValues) To UBound(vValues)
+        If vValues(lRow, oListObject.ListColumns(sSearchCol).Index) = vSearchVal Then
+            vRet = vValues(lRow, oListObject.ListColumns(sResultCol).Index)
             Exit For
         End If
     Next
     LookupTableBody = vRet
 End Function
 
-' ディクショナリ版
-Function MakeTableBodyDict(ByVal oListObject As ListObject, ByVal sKeyCol As String) As Object
+' ルックアップ(２次元)
+Function LookupTableBodyDictGen(ByVal oListObject As ListObject, ByVal sMainColKey As String) As Object
     Dim oRet As Object
     Set oRet = CreateObject("Scripting.Dictionary")
-    Dim elm As Variant
-    Dim lKey As Long
-    Dim sKey As String
-    lKey = oListObject.ListColumns(sKeyCol).Index
-    For Each elm In oListObject.ListRows
-        sKey = elm.Range(lKey).Text
-        If oRet.Exists(sKey) = False Then
-            Call oRet.Add(sKey, elm.Range.Value)
-        End If
+    Dim vValues As Variant
+    Dim lCol As Long
+    Dim lRow As Long
+    vValues = oListObject.DataBodyRange.Value
+    For lRow = LBound(vValues, 1) To UBound(vValues, 1)
+        For lCol = LBound(vValues, 2) To UBound(vValues, 2)
+            Dim sKey As String
+            Dim vVal As Variant
+            sKey = vValues(lRow, oListObject.ListColumns(sMainColKey).Index) & "@" & oListObject.ListColumns(lCol).Name
+            vVal = vValues(lRow, lCol)
+            Call oRet.Add(sKey, vVal)
+        Next
     Next
-    Set MakeTableBodyDict = oRet
+    Set LookupTableBodyDictGen = oRet
 End Function
-Function ResolveTableBodyDict(ByVal oListObject As ListObject, ByVal oDict As Object, ByVal sKey As String, ByVal sRef As String) As Variant
+Function LookupTableBodyDict(ByVal oDict As Object, ByVal sRowKey As String, ByVal sColKey As String) As Variant
     Dim vRet As Variant
+    Dim sKey As String
+    sKey = sRowKey & "@" & sColKey
     If oDict.Exists(sKey) Then
-        vRet = oDict.Item(sKey)(1, GetTableColIdx(oListObject, sRef))
+        vRet = oDict(sKey)
     End If
-    ResolveTableBodyDict = vRet
+    LookupTableBodyDict = vRet
 End Function
 
-' // テーブルデータ部フィルタ /////////////////////////////
-' // ・フィルタ設定はExcel機能そのものであるため、かなり処理が重いことに注意
-' // ・手動/コードでフィルタ(非表示状態に)したデータもテーブルデータ部取得関連処理では普通に参照できる
-' // ・手動/コードでフィルタ(非表示状態に)したデータを無視したい場合はSpecialCells(xlCellTypeVisible)で切り分ける
+' // テーブルデータ部フィルタ /////////////////////////////////////////////////
+' // ・手動/コードでフィルタしたデータもテーブルデータ部取得関連処理では普通に参照できる
+' // ・手動/コードでフィルタしたデータを無視する場合はSpecialCells(xlCellTypeVisible)で切り分け
 
 ' テーブルにフィルタを適用
 Sub AddTableFilter(ByVal oListObject As ListObject, ByVal sColumn As String, ByVal sCriteria As String, Optional ByVal lOperator As XlAutoFilterOperator = xlAnd)
@@ -293,7 +412,6 @@ Sub AddTableFilter(ByVal oListObject As ListObject, ByVal sColumn As String, ByV
 End Sub
 
 ' テーブルのフィルタをクリア
-' Excel機能のフィルタは重いので注意
 Sub ClrTableRowFilter(ByVal oListObject As ListObject)
     oListObject.AutoFilter.ShowAllData
 End Sub
@@ -308,7 +426,7 @@ Function SanitizeFilterText(ByVal sText) As String
     SanitizeFilterText = sText
 End Function
 
-' // テーブルデータ部ソート ///////////////////////////////
+' // テーブルデータ部ソート ///////////////////////////////////////////////////
 
 ' ソート実施
 Sub ApplyTableSort(ByVal oListObject As ListObject, ByVal sColumn As String, Optional ByVal bMatchCase As Boolean = True, Optional ByVal lSortMethod As XlSortMethod = xlPinYin)
@@ -329,7 +447,7 @@ Sub ClrTableSort(ByVal oListObject As ListObject, ByVal sColumn As String)
     Call oListObject.Sort.SortFields.Clear
 End Sub
 
-' // テーブルの右クリックメニュー /////////////////////////
+' // テーブルの右クリックメニュー /////////////////////////////////////////////
 ' // ・普通のセル上での右クリックには反応しない
 
 ' 右クリックメニュー追加
@@ -346,3 +464,4 @@ End Sub
 Sub ClrTableRClickMenu()
     Call Application.CommandBars("List Range Popup").Reset
 End Sub
+

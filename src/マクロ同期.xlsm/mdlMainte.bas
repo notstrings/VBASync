@@ -15,7 +15,7 @@ On Error GoTo ErrExit
         GoTo NrmExit
     End If
     Dim lRow As Long
-    For lRow = 1 To GetTableBodyCnt(oDataTable)
+    For lRow = 1 To GetTableBodyRowCnt(oDataTable)
         Dim sSrcPath As String
         Dim sDstPath As String
         Dim oSrcBook As Workbook: Set oSrcBook = Nothing
