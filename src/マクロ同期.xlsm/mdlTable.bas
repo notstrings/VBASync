@@ -36,7 +36,7 @@ Sub DelTableByName(ByVal oSheet As Worksheet, Optional ByVal sTableName As Strin
 End Sub
 
 ' テーブル取得(全)
-Function GetTables(ByVal oSheet As Worksheet, Optional ByVal lIndex As Long = 1) As ListObjects
+Function GetTables(ByVal oSheet As Worksheet) As ListObjects
     Set GetTables = oSheet.ListObjects
 End Function
 
@@ -187,7 +187,7 @@ Sub DelTableRow(ByVal oListObject As ListObject, ByVal lPosition As Long)
 End Sub
 
 ' // テーブルヘッダー /////////////////////////////////////////////////////////
-' // ・列タイトル行範囲※注意：ヘッダー非表示の場合は取得できない事
+' // ・列タイトル行範囲※注意：ヘッダー非表示の場合は取得できない
 
 ' ヘッダ部全体取得＝構造化参照：Range("テーブル名[#Header]")
 Function GetTableHeaderRng(ByVal oListObject As ListObject) As Range
@@ -283,11 +283,11 @@ Function GetTableBodyRowCnt(ByVal oListObject As ListObject) As Long
 End Function
 
 ' テーブル座標系変換
-Function GetTableBodyRowIdx(ByVal oListObject As ListObject, ByVal oRange As Range) As Long
-    GetTableBodyRowIdx = oRange.Row - oListObject.DataBodyRange.Row + 1
+Function TranTableBodyRowIdx(ByVal oListObject As ListObject, ByVal oRange As Range) As Long
+    TranTableBodyRowIdx = oRange.Row - oListObject.DataBodyRange.Row + 1
 End Function
-Function GetTableBodyColIdx(ByVal oListObject As ListObject, ByVal oRange As Range) As Long
-    GetTableBodyColIdx = oRange.Column - oListObject.DataBodyRange.Column + 1
+Function TranTableBodyColIdx(ByVal oListObject As ListObject, ByVal oRange As Range) As Long
+    TranTableBodyColIdx = oRange.Column - oListObject.DataBodyRange.Column + 1
 End Function
 
 ' データ範囲クリップ
@@ -314,8 +314,8 @@ End Function
 '    Set oTarget = Selection                                         ' テーブルに関係ないセル範囲
 '    Set oTarget = ClipTableBodyRange(oDataTable, oTarget)           ' テーブルに関係ないセル範囲をテーブル範囲内にクリップ
 '    If oTarget Is Nothing Then Exit Sub                             ' テーブル範囲外なので終了
-'    Dim lc As Long: lc = GetTableBodyColIdx(oDataTable, oTarget)    ' テーブル内部でのインデックス番号に変換
-'    Dim lr As Long: lr = GetTableBodyRowIdx(oDataTable, oTarget)    ' テーブル内部でのインデックス番号に変換
+'    Dim lc As Long: lc = TranTableBodyColIdx(oDataTable, oTarget)   ' テーブル内部でのインデックス番号に変換
+'    Dim lr As Long: lr = TranTableBodyRowIdx(oDataTable, oTarget)   ' テーブル内部でのインデックス番号に変換
 '    GetTableBodyRng(oDataTable)(lr, lc) = "aaa"                     ' 位置指定アクセス
 'End Sub
 
