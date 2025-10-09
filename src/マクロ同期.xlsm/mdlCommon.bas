@@ -24,6 +24,7 @@ Option Private Module
 ' //          ハイパーリンク関連処理追加
 ' //          WebService用改めWebAPI用処理各種改修
 ' //          ByVal/ByRefや戻り値の型指定を徹底
+' // 20251009:正規表現ライブラリ差し替え
 
 Public Const csELPtrn As String = "[" & vbCr & vbLf & "]"   ' TrimEx用
 
@@ -1259,7 +1260,7 @@ Function Arrays(ByVal lNum As Long, ByVal vVal As Variant) As Variant
 End Function
 
 ' // 正規表現 /////////////////////////////////////////////
-' // ・VBAの正規表現では「後読」が使えない事に注意
+' // ・VBAの正規表現ではないので「後読」が使える
 
 ' 正規表現生成
 Function MakeRegx(ByVal sPtrn As String, Optional ByVal bGlobal As Boolean = False, Optional ByVal bIgnoreCase As Boolean = False) As Object
@@ -1543,5 +1544,7 @@ Function DecodeURL(ByVal sText As String) As String
         DecodeURL = .CodeObject.decodeURIComponent(sText)
     End With
 End Function
+
+
 
 
