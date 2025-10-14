@@ -24,7 +24,7 @@ Option Private Module
 ' //          ハイパーリンク関連処理追加
 ' //          WebService用改めWebAPI用処理各種改修
 ' //          ByVal/ByRefや戻り値の型指定を徹底
-' // 20251009:正規表現ライブラリ差し替え
+' // 20251009:正規表現ライブラリ差し替え＆ライセンス的に微妙なので分離
 
 Public Const csELPtrn As String = "[" & vbCr & vbLf & "]"   ' TrimEx用
 
@@ -1278,84 +1278,6 @@ Function Arrays(ByVal lNum As Long, ByVal vVal As Variant) As Variant
     Arrays = vRet
 End Function
 
-' // 正規表現 /////////////////////////////////////////////
-' // ・VBAの正規表現ではないので「後読」が使える
-
-' 正規表現生成
-Function MakeRegx(ByVal sPtrn As String, Optional ByVal bGlobal As Boolean = False, Optional ByVal bIgnoreCase As Boolean = False) As Object
-    Dim oRegx As New VBARegExp
-    oRegx.Pattern = sPtrn
-    oRegx.IgnoreCase = bIgnoreCase
-    oRegx.GlobalMatch = bGlobal
-    Set MakeRegx = oRegx
-End Function
-
-' 正規表現合致判定
-Function TestRegx(ByVal oRegx As Object, ByVal sText As String) As Boolean
-    TestRegx = oRegx.Test(sText)
-End Function
-
-' 正規表現文字置換
-Function ReplaceRegx(ByVal oRegx As Object, ByVal sText As String, ByVal sReplace As String) As String
-    ReplaceRegx = oRegx.Replace(sText, sReplace)
-End Function
-
-' 正規表現文字切出
-Function ClipRegx(ByVal oRegx As Object, ByVal sText As String) As Collection
-    ' ClipRegxは文字の一部を切り出すのが目的なので、普通はあまり複雑な正規表現を指定しないハズ
-    ' 想定上は以下のような使い方で、キャプチャされなかったパターンは空文字になる
-    ' 　入力文字         :"AAAACCCCC"
-    ' 　正規表現         :"(A+)?(B+)?(C+)"
-    ' 　キャプチャ結果(1):"AAAA"
-    ' 　キャプチャ結果(2):""
-    ' 　キャプチャ結果(3):"CCCC"
-    Dim oRet As New Collection
-    Dim oMC As VBARegMatch
-    For Each oMC In oRegx.Execute(sText)
-        Dim idx As Long
-        For idx = 0 To oMC.SubMatches.Count - 1
-            Call oRet.Add(oMC.SubMatches(idx))
-        Next
-    Next
-    Set ClipRegx = oRet
-End Function
-
-' 正規表現合致判定(一行版)
-Function TestRegxEx(ByVal sText As String, ByVal sPtrn As String, Optional ByVal bGlobal As Boolean = False, Optional ByVal bIgnoreCase As Boolean = False) As Boolean
-    TestRegxEx = TestRegx(MakeRegx(sPtrn, bGlobal, bIgnoreCase), sText)
-End Function
-
-' 正規表現文字置換(一行版)
-Function ReplaceRegxEx(ByVal sText As String, ByVal sPtrn As String, ByVal sReplace As String, Optional ByVal bGlobal As Boolean = False, Optional ByVal bIgnoreCase As Boolean = False) As String
-    ReplaceRegxEx = ReplaceRegx(MakeRegx(sPtrn, bGlobal, bIgnoreCase), sText, sReplace)
-End Function
-
-' 正規表現文字切出(一行版)
-Function ClipRegxEx(ByVal sText As String, ByVal sPtrn As String, Optional ByVal bIgnoreCase As Boolean = False) As Collection
-    Set ClipRegxEx = ClipRegx(MakeRegx(sPtrn, False, bIgnoreCase), sText)
-End Function
-
-' 正規表現サニタイズ
-Function SanitizeRegx(ByVal sText As String) As String
-    Dim sRet As String
-    sRet = sText
-    sRet = Replace(sRet, "\", "\\")
-    sRet = Replace(sRet, "*", "\*")
-    sRet = Replace(sRet, "+", "\+")
-    sRet = Replace(sRet, ".", "\.")
-    sRet = Replace(sRet, "?", "\?")
-    sRet = Replace(sRet, "{", "\{")
-    sRet = Replace(sRet, "}", "\}")
-    sRet = Replace(sRet, "(", "\(")
-    sRet = Replace(sRet, ")", "\)")
-    sRet = Replace(sRet, "[", "\[")
-    sRet = Replace(sRet, "]", "\]")
-    sRet = Replace(sRet, "^", "\^")
-    sRet = Replace(sRet, "$", "\$")
-    sRet = Replace(sRet, "|", "\|")
-    SanitizeRegx = sRet
-End Function
-
 ' // ハイパーリンク操作 ///////////////////////////////////
 
 ' 汎用リンク設定
@@ -1431,9 +1353,9 @@ End Sub
 
 ' URLリンク判定
 Function isURLLink(oLink As Hyperlink) As Boolean
-    ' 全ての有効なURLスキームを確認できるわけではないので
-    ' あくまでもURLスキームらしい記述を確認するだけ
-    isURLLink = TestRegxEx(Trim(oLink.Address), "^[-a-zA-Z0-9]{2,}:", True, True)
+    ' システム中で有効なURLスキームを全て確認できるわけではないので
+    ' 一般的なURLスキームらしい":"の存在をチェックするだけにしている
+    isURLLink = InStr(oLink.Address, ":") > 0
 End Function
 
 ' ファイル検索リンク設定
