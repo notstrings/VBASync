@@ -409,7 +409,25 @@ Private Function GenUniqSheetName(ByVal oBook As Workbook, ByVal sName As String
 End Function
 
 ' ÉVÅ[ÉgçÌèú
-Function DelSheet(ByRef oBook As Workbook, ByVal sNamePtrn As String, Optional ByVal bDisableAlarts As Boolean = False) As Boolean
+Function DelSheet(ByRef oBook As Workbook, ByVal oSheet As Worksheet, Optional ByVal bDisableAlarts As Boolean = False) As Boolean
+    Dim bRet As Boolean
+    Dim bOrgAlt As Boolean: bOrgAlt = Application.DisplayAlerts
+On Error GoTo ErrExit:
+    If bDisableAlarts Then
+        Application.DisplayAlerts = False
+    End If
+    oSheet.Delete
+    bRet = True
+NrmExit:
+    If bDisableAlarts Then
+        Application.DisplayAlerts = bOrgAlt
+    End If
+    DelSheet = bRet
+    Exit Function
+ErrExit:
+    Resume NrmExit
+End Function
+Function DelSheetByName(ByRef oBook As Workbook, ByVal sName As String, Optional ByVal bDisableAlarts As Boolean = False) As Boolean
     Dim bRet As Boolean
     Dim bOrgAlt As Boolean: bOrgAlt = Application.DisplayAlerts
 On Error GoTo ErrExit:
@@ -418,15 +436,16 @@ On Error GoTo ErrExit:
     End If
     Dim elm As Variant
     For Each elm In oBook.Sheets
-        If elm.Name Like sNamePtrn Then
+        If elm.Name = sName Then
             bRet = elm.Delete
+            Exit For
         End If
     Next
 NrmExit:
     If bDisableAlarts Then
         Application.DisplayAlerts = bOrgAlt
     End If
-    DelSheet = bRet
+    DelSheetByName = bRet
     Exit Function
 ErrExit:
     Resume NrmExit
@@ -1544,7 +1563,5 @@ Function DecodeURL(ByVal sText As String) As String
         DecodeURL = .CodeObject.decodeURIComponent(sText)
     End With
 End Function
-
-
 
 

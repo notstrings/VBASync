@@ -12,6 +12,44 @@ Option Private Module
 ' // 20240523:大きめのテコ入れ
 ' // 202509XX:実用版
 
+' // 使い方 ///////////////////////////////////////////////////////////////////
+
+'■普通にテーブルをループ処理する方法
+'Sub sample()
+'    Dim lRow As Long
+'    Dim lCol As Long
+'    Dim oTable As ListObject
+'    Set oTable = GetTable(ThisWorkbook.ActiveSheet)
+'    If oTable Is Nothing Then Exit Sub                                  ' テーブルがないので終了
+'    For lRow = 1 To GetTableBodyRowCnt(oTable)                          ' 行数
+'        Debug.Print GetTableBodyCell(oTable, lRow, "列名").Text         ' 列名不正で例外
+'        Debug.Print GetTableBodyCellSafe(oTable, lRow, "列名").Text     ' 列名不正でNothing
+'    Next
+'    For lRow = 1 To GetTableBodyRowCnt(oTable)                          ' 行数
+'        Dim oRng As Range
+'        Set oRng = GetTableBodyRowRng(oTable, lRow)                     ' 行範囲取得の場合は範囲添字が一次元
+'        Debug.Print oRng(GetTableColIdx(oTable, "列名"))                ' 行範囲取得の場合は範囲添字が一次元
+'    Next
+'    Dim oRng As Variant
+'    oRng = GetTableBodyRng(oTable)                                      ' 全体取得
+'    Debug.Print oRng(1, GetTableColIdx(oTable, "列名"))                 ' テーブル座標系
+'End Sub
+
+'■Worksheet_Changeとかで出てきたセルの座標とテーブルの座標を合わせる方法
+'Sub sample()
+'    Dim oTable As ListObject
+'    Set oTable = GetTable(ThisWorkbook.ActiveSheet)
+'    If oTable Is Nothing Then Exit Sub                                  ' テーブルがないので終了
+'    Dim oTarget As Range
+'    Set oTarget = Selection                                             ' テーブルに関係ないセル範囲
+'    Set oTarget = ClipTableBodyRange(oTable, oTarget)                   ' テーブルに関係ないセル範囲をテーブル範囲内にクリップ
+'    If oTarget Is Nothing Then Exit Sub                                 ' テーブル範囲外なので終了
+'    Dim lc As Long: lc = TranTableBodyColIdx(oTable, oTarget)           ' テーブル内部でのインデックス番号に変換
+'                    lc = GetTableColIdx(oTable, "列名")                 ' テーブル内部でのインデックス番号を取得
+'    Dim lr As Long: lr = TranTableBodyRowIdx(oTable, oTarget)           ' テーブル内部でのインデックス番号に変換
+'    GetTableBodyRng(oTable)(lr, lc) = "aaa"                             ' 位置指定アクセス
+'End Sub
+
 ' // テーブル全体 /////////////////////////////////////////////////////////////
 
 ' テーブル作成
@@ -187,7 +225,7 @@ Sub DelTableRow(ByVal oListObject As ListObject, ByVal lPosition As Long)
 End Sub
 
 ' // テーブルヘッダー /////////////////////////////////////////////////////////
-' // ・列タイトル行範囲※注意：ヘッダー非表示の場合は取得できない
+' // ・列タイトル行範囲※注意：ヘッダー非表示の場合は範囲を取得できない
 
 ' ヘッダ部全体取得＝構造化参照：Range("テーブル名[#Header]")
 Function GetTableHeaderRng(ByVal oListObject As ListObject) As Range
@@ -220,7 +258,7 @@ Function GetTableHeaderCellbyIdx(ByVal oListObject As ListObject, ByVal lColIdx 
     Set GetTableHeaderCellbyIdx = oRet
 End Function
 
-' ヘッダ部の指定セル取得(テーブル内任意セル)
+' ヘッダ部の指定セル取得(oCellはシート座標系任意セル)
 Function GetTableHeaderCellbyCell(ByVal oListObject As ListObject, ByVal oCell As Range) As Range
     Dim oRet As Range
     If Not oListObject.HeaderRowRange Is Nothing Then
@@ -230,7 +268,7 @@ Function GetTableHeaderCellbyCell(ByVal oListObject As ListObject, ByVal oCell A
 End Function
 
 ' // テーブルフッタ－ /////////////////////////////////////////////////////////
-' // ・集計行範囲※注意；フッタ－非表示の場合は取得できない
+' // ・集計行範囲※注意：フッタ－非表示の場合は範囲を取得できない
 
 ' フッタ部全体取得＝構造化参照：Range("テーブル名[#Totals]")
 Function GetTableFooterRng(ByVal oListObject As ListObject) As Range
@@ -263,7 +301,7 @@ Function GetTableFooterCellbyIdx(ByVal oListObject As ListObject, ByVal lColIdx 
     Set GetTableFooterCellbyIdx = oRet
 End Function
 
-' フッタ部の指定セル取得(テーブル内任意セル)
+' フッタ部の指定セル取得(oCellはシート座標系任意セル)
 Function GetTableFooterCellbyElm(ByVal oListObject As ListObject, ByVal oCell As Range) As Range
     Dim oRet As Range
     If Not oListObject.TotalsRowRange Is Nothing Then
@@ -273,6 +311,13 @@ Function GetTableFooterCellbyElm(ByVal oListObject As ListObject, ByVal oCell As
 End Function
 
 ' // テーブルデータ部 /////////////////////////////////////////////////////////
+
+' データ部消去
+Sub ClrTableBody(ByVal oListObject As ListObject)
+    If Not oListObject.DataBodyRange Is Nothing Then
+        oListObject.DataBodyRange.Delete
+    End If
+End Sub
 
 ' データ行列数
 Function GetTableBodyColCnt(ByVal oListObject As ListObject) As Long
@@ -295,29 +340,10 @@ Function ClipTableBodyRange(ByVal oListObject As ListObject, ByVal oRange As Ran
     Set ClipTableBodyRange = IntersectRange(oListObject.DataBodyRange, oRange)
 End Function
 
-' データ部消去
-Sub ClrTableBody(ByVal oListObject As ListObject)
-    If Not oListObject.DataBodyRange Is Nothing Then
-        oListObject.DataBodyRange.Delete
-    End If
-End Sub
-
 ' データ部全体＝構造化参照：Range("テーブル名[#Data]")
 Function GetTableBodyRng(ByVal oListObject As ListObject) As Range
     Set GetTableBodyRng = oListObject.DataBodyRange
 End Function
-'Sub sample()
-'    Dim oDataTable As ListObject
-'    Set oDataTable = GetTable(ThisWorkbook.ActiveSheet)
-'    If oDataTable Is Nothing Then Exit Sub                          ' テーブルがないので終了
-'    Dim oTarget As Range
-'    Set oTarget = Selection                                         ' テーブルに関係ないセル範囲
-'    Set oTarget = ClipTableBodyRange(oDataTable, oTarget)           ' テーブルに関係ないセル範囲をテーブル範囲内にクリップ
-'    If oTarget Is Nothing Then Exit Sub                             ' テーブル範囲外なので終了
-'    Dim lc As Long: lc = TranTableBodyColIdx(oDataTable, oTarget)   ' テーブル内部でのインデックス番号に変換
-'    Dim lr As Long: lr = TranTableBodyRowIdx(oDataTable, oTarget)   ' テーブル内部でのインデックス番号に変換
-'    GetTableBodyRng(oDataTable)(lr, lc) = "aaa"                     ' 位置指定アクセス
-'End Sub
 
 ' データ部の指定列
 Function GetTableBodyColRng(ByVal oListObject As ListObject, ByVal sColumn As String) As Range
@@ -357,8 +383,10 @@ Function GetTableBodyCellSafe(ByVal oListObject As ListObject, ByVal lRowIdx As 
 End Function
 
 ' 探索
+' ・ルックアップ系は基本的に設定取得用途なので高速性を優先してVariantによる範囲一括取得を使用している
+' 　結果的に探索対象セルの値が数値型100の場合に文字列型"100"を探索しても型の不一致で検出できない事に注意
 
-' ルックアップ(１次元)
+' ルックアップ(キャッシュなし)
 Function LookupTableBody(ByVal oListObject As ListObject, ByVal sSearchCol As String, ByVal sResultCol As String, ByVal vSearchVal As Variant) As Variant
     Dim vRet As Variant
     Dim vValues As Variant
@@ -373,7 +401,7 @@ Function LookupTableBody(ByVal oListObject As ListObject, ByVal sSearchCol As St
     LookupTableBody = vRet
 End Function
 
-' ルックアップ(２次元)
+' ルックアップ(キャッシュあり)
 Function LookupTableBodyDictGen(ByVal oListObject As ListObject, ByVal sMainColKey As String) As Object
     Dim oRet As Object
     Set oRet = CreateObject("Scripting.Dictionary")
@@ -404,7 +432,7 @@ End Function
 
 ' // テーブルデータ部フィルタ /////////////////////////////////////////////////
 ' // ・手動/コードでフィルタしたデータもテーブルデータ部取得関連処理では普通に参照できる
-' // ・手動/コードでフィルタしたデータを無視する場合はSpecialCells(xlCellTypeVisible)で切り分け
+' // ・手動/コードでフィルタしたデータを無視する場合はSpecialCells(xlCellTypeVisible)で切り分けられる
 
 ' テーブルにフィルタを適用
 Sub AddTableFilter(ByVal oListObject As ListObject, ByVal sColumn As String, ByVal sCriteria As String, Optional ByVal lOperator As XlAutoFilterOperator = xlAnd)
@@ -464,4 +492,5 @@ End Sub
 Sub ClrTableRClickMenu()
     Call Application.CommandBars("List Range Popup").Reset
 End Sub
+
 
