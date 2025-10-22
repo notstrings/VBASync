@@ -9,6 +9,7 @@ Option Private Module
 ' // 20221101:類似ファイル探索追加
 ' // 20240401:ChooseSimilarFile/ChooseSimilarFolder修正
 ' //          ByVal/ByRefや戻り値の型指定を徹底
+' // 20251010:コマンド存在チェック追加
 
 ' CreateDirectory用
 Private Declare PtrSafe Function SHCreateDirectoryEx Lib "shell32" Alias "SHCreateDirectoryExW" (ByVal hWnd As Long, ByVal pszPath As LongPtr, ByVal psa As Long) As Long
@@ -892,6 +893,13 @@ Sub OpenPathEx(ByVal sPath As String, ByVal sFilter As String)
     Call CreateShellApp().ShellExecute("search-ms:query=" & sFilter & "&" & "crumb=location:" & sPath)
 End Sub
 
+' コマンド存在確認
+Function IsExistCmd(ByVal sCommand As String) As Boolean
+    Dim bRet As Boolean
+    bRet = CreateWSH().Run("%ComSpec% /c where " & sCommand & " > nul 2>&1", 0, True)
+    IsExistCmd = Not bRet
+End Function
+
 ' コマンド同期実行(標準出力無)
 Function RunCmd(ByVal sCommand As String) As Long
     Dim lResult As Long
@@ -979,5 +987,4 @@ End Function
 Function ExtractArchive(ByVal sSrcPath As String, ByVal sDstPath As String) As Long
     ExtractArchive = RunPsh("Expand-Archive -Path " & sSrcPath & " -DestinationPath " & sDstPath & " -Force")
 End Function
-
 

@@ -53,14 +53,20 @@ Option Private Module
 ' // テーブル全体 /////////////////////////////////////////////////////////////
 
 ' テーブル作成
-Function AddTable(ByVal oSheet As Worksheet, ByVal oRange As Range, Optional ByVal sTable As String = "Table", Optional ByVal bHasHeader As Boolean = True) As ListObject
+Function AddTable(ByVal oSheet As Worksheet, ByVal oRange As Range, Optional ByVal sName As String = "", Optional ByVal bHasHeader As Boolean = True) As ListObject
     Dim oRet As ListObject
     Set oRet = oSheet.ListObjects.Add(SourceType:=xlSrcRange, source:=oRange, XlListObjectHasHeaders:=IIf(bHasHeader, xlYes, xlNo))
+    If sName <> "" Then
+        oRet.Name = sName
+    End If
     Set AddTable = oRet
 End Function
-Function AddTableWithRecordset(ByVal oSheet As Worksheet, ByVal oRange As Range, ByVal oSrcRecordset As Object) As ListObject
+Function AddTableWithRecordset(ByVal oSheet As Worksheet, ByVal oRange As Range, ByVal oSrcRecordset As Object, Optional ByVal sName As String = "") As ListObject
     Dim oRet As ListObject
     Set oRet = oSheet.ListObjects.Add(SourceType:=xlSrcQuery, source:=oSrcRecordset, LinkSource:=False, XlListObjectHasHeaders:=xlYes, Destination:=oRange)
+    If sName <> "" Then
+        oRet.Name = sName
+    End If
     Call oRet.QueryTable.Refresh
     Set AddTableWithRecordset = oRet
 End Function
@@ -236,10 +242,10 @@ End Function
 Function GetTableHeaderCell(ByVal oListObject As ListObject, ByVal sColumn As String) As Range
     Dim oRet As Range
     If Not oListObject.HeaderRowRange Is Nothing Then
-        Dim elm As Range
-        For Each elm In oListObject.HeaderRowRange
-            If elm.Text = sColumn Then
-                Set oRet = elm
+        Dim elm As ListColumn
+        For Each elm In oListObject.ListColumns
+            If elm.Name = sColumn Then
+                Set oRet = oListObject.HeaderRowRange(elm.Index)
                 Exit For
             End If
         Next
@@ -279,10 +285,10 @@ End Function
 Function GetTableFooterCell(ByVal oListObject As ListObject, ByVal sColumn As String) As Range
     Dim oRet As Range
     If Not oListObject.TotalsRowRange Is Nothing Then
-        Dim elm As Range
-        For Each elm In oListObject.TotalsRowRange
-            If elm.Text = sColumn Then
-                Set oRet = elm
+        Dim elm As ListColumn
+        For Each elm In oListObject.ListColumns
+            If elm.Name = sColumn Then
+                Set oRet = oListObject.TotalsRowRange(elm.Index)
                 Exit For
             End If
         Next
@@ -435,16 +441,44 @@ End Function
 ' // ・手動/コードでフィルタしたデータを無視する場合はSpecialCells(xlCellTypeVisible)で切り分けられる
 
 ' テーブルにフィルタを適用
-Sub AddTableFilter(ByVal oListObject As ListObject, ByVal sColumn As String, ByVal sCriteria As String, Optional ByVal lOperator As XlAutoFilterOperator = xlAnd)
-    Call oListObject.Range.AutoFilter(oListObject.ListColumns(sColumn).Index, sCriteria, lOperator)
+Sub AddTableFilter(ByVal oListObject As ListObject, ByVal sColumn As String, ByVal vCriteria1 As Variant, Optional ByVal lOperator As XlAutoFilterOperator = xlAnd, Optional ByVal vCriteria2 As Variant)
+    Call oListObject.Range.AutoFilter(oListObject.ListColumns(sColumn).Index, vCriteria1, lOperator, vCriteria2)
+End Sub
+Sub AddTableFilterORng(ByVal oListObject As ListObject, ByVal sColumn As String, ByVal dMin As Double, Optional ByVal dMax As Double) ' 開区間
+    Call oListObject.Range.AutoFilter(oListObject.ListColumns(sColumn).Index, ">" & dMin, xlAnd, "<" & dMax)
+End Sub
+Sub AddTableFilterCRng(ByVal oListObject As ListObject, ByVal sColumn As String, ByVal dMin As Double, Optional ByVal dMax As Double) ' 閉区間
+    Call oListObject.Range.AutoFilter(oListObject.ListColumns(sColumn).Index, ">=" & dMin, xlAnd, "<=" & dMax)
+End Sub
+Sub AddTableFilterEnum(ByVal oListObject As ListObject, ByVal sColumn As String, ByVal vCriteriaArray As Variant) ' 列挙
+    Call oListObject.Range.AutoFilter(oListObject.ListColumns(sColumn).Index, vCriteriaArray, xlFilterValues)
 End Sub
 
 ' テーブルのフィルタをクリア
-Sub ClrTableRowFilter(ByVal oListObject As ListObject)
+Sub ClrTableFilter(ByVal oListObject As ListObject)
     oListObject.AutoFilter.ShowAllData
 End Sub
 
-' テーブルに設定するフィルタ文字列をサニタイズ
+' テーブルのフィルタ結果行数取得
+Function GetTableFilterRowCnt(ByVal oListObject As ListObject) As Long
+    ' SpecialCellsでの範囲取得は結果が0件の場合に例外を吐くから
+    ' ヘッダ行がある場合はヘッダを含んだ列全体の表示セル数-1を行数とすればいい
+    ' ヘッダ行がない場合は残念だが頑張って手動カウントしなくてはならない
+    Dim lRet As Long
+    If Not oListObject.DataBodyRange Is Nothing Then
+        lRet = oListObject.AutoFilter.Range.Columns(1).SpecialCells(xlCellTypeVisible).Count - 1
+    Else
+        Dim elm As ListRow
+        For Each elm In oListObject.ListRows
+            If Not elm.Range.EntireRow.Hidden Then
+                lRet = lRet + 1
+            End If
+        Next
+    End If
+    GetTableFilterRowCnt = lRet
+End Function
+
+' テーブルに設定するフィルタ対象名をサニタイズ
 Function SanitizeFilterText(ByVal sText) As String
     sText = Replace(sText, "*", "~*")
     sText = Replace(sText, "?", "~?")
@@ -457,7 +491,7 @@ End Function
 ' // テーブルデータ部ソート ///////////////////////////////////////////////////
 
 ' ソート実施
-Sub ApplyTableSort(ByVal oListObject As ListObject, ByVal sColumn As String, Optional ByVal bMatchCase As Boolean = True, Optional ByVal lSortMethod As XlSortMethod = xlPinYin)
+Sub ApplyTableSort(ByVal oListObject As ListObject, Optional ByVal bMatchCase As Boolean = True, Optional ByVal lSortMethod As XlSortMethod = xlPinYin)
     With oListObject.Sort
         .MatchCase = bMatchCase
         .SortMethod = lSortMethod
@@ -466,17 +500,24 @@ Sub ApplyTableSort(ByVal oListObject As ListObject, ByVal sColumn As String, Opt
 End Sub
 
 ' ソート条件追加
-Sub AddTableSort(ByVal oListObject As ListObject, ByVal sColumn As String, Optional ByVal lOrder As XlSortOrder = xlAscending, Optional ByVal lSortOn As XlSortOn = xlSortOnValues, Optional lDataOption As XlSortDataOption = xlSortTextAsNumbers)
-    Call oListObject.Sort.SortFields.Add(key:=oListObject.ListColumns(sColumn).Range, SortOn:=lSortOn, Order:=lOrder, DataOption:=lDataOption)
+Sub AddTableSort(ByVal oListObject As ListObject, ByVal sColumn As String, Optional ByVal lOrder As XlSortOrder = xlAscending, Optional ByVal lSortOn As XlSortOn = xlSortOnValues, Optional sCustomOrder As String, Optional lDataOption As XlSortDataOption = xlSortTextAsNumbers)
+    ' CustomOrder周りには色々既知の問題があるので回避処理が必要
+    ' ・CustomOrderに即値文字列以外を指定すると実行時エラーになる
+    ' ・CustomOrder指定無しのつもりで空文字指定すると実行時エラーになる
+    If sCustomOrder = "" Then
+        Call oListObject.Sort.SortFields.Add(key:=oListObject.ListColumns(sColumn).Range, SortOn:=lSortOn, Order:=lOrder, DataOption:=lDataOption)
+    Else
+        Call oListObject.Sort.SortFields.Add(key:=oListObject.ListColumns(sColumn).Range, SortOn:=lSortOn, Order:=lOrder, CustomOrder:=CStr(sCustomOrder), DataOption:=lDataOption)
+    End If
 End Sub
 
 ' ソート条件消去
-Sub ClrTableSort(ByVal oListObject As ListObject, ByVal sColumn As String)
+Sub ClrTableSort(ByVal oListObject As ListObject)
     Call oListObject.Sort.SortFields.Clear
 End Sub
 
 ' // テーブルの右クリックメニュー /////////////////////////////////////////////
-' // ・普通のセル上での右クリックには反応しない
+' // ・テーブルは普通のセル上での右クリックには反応しない
 
 ' 右クリックメニュー追加
 Sub AddTableRClickMenu(ByVal sTitle As String, ByVal sMacro As String)
@@ -492,5 +533,4 @@ End Sub
 Sub ClrTableRClickMenu()
     Call Application.CommandBars("List Range Popup").Reset
 End Sub
-
 

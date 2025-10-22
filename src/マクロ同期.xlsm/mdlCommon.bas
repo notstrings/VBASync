@@ -1052,9 +1052,9 @@ End Function
 ' 文字結合(コレクション)
 Function ConcatCollection(ByVal sSep As String, ByVal sText As Collection) As String
     Dim Ret As String
-    Dim s As Variant
-    For Each s In sText
-        Ret = Ret & s & sSep
+    Dim S As Variant
+    For Each S In sText
+        Ret = Ret & S & sSep
     Next
     If Right(Ret, 1) = sSep Then
         Ret = Left(Ret, Len(Ret) - 1)
@@ -1065,9 +1065,9 @@ End Function
 ' 空文字以外を結合(配列)
 Function PackArray(ByVal sSep As String, ByVal sText As Variant) As String
     Dim Ret As String
-    Dim s As Variant
-    For Each s In sText
-        Ret = Ret & IIf(IsNullOrEmpty(s) = False, s & sSep, "")
+    Dim S As Variant
+    For Each S In sText
+        Ret = Ret & IIf(IsNullOrEmpty(S) = False, S & sSep, "")
     Next
     If Right(Ret, 1) = sSep Then
         Ret = Left(Ret, Len(Ret) - 1)
@@ -1078,9 +1078,9 @@ End Function
 ' 空文字以外を結合(可変長配列)
 Function PackArgs(ByVal sSep As String, ParamArray sText() As Variant) As String
     Dim Ret As String
-    Dim s As Variant
-    For Each s In sText
-        Ret = Ret & IIf(IsNullOrEmpty(s) = False, s & sSep, "")
+    Dim S As Variant
+    For Each S In sText
+        Ret = Ret & IIf(IsNullOrEmpty(S) = False, S & sSep, "")
     Next
     If Right(Ret, 1) = sSep Then
         Ret = Left(Ret, Len(Ret) - 1)
@@ -1091,9 +1091,9 @@ End Function
 ' 空文字以外を結合(コレクション)
 Function PackCollection(ByVal sSep As String, ByVal sText As Collection) As String
     Dim Ret As String
-    Dim s As Variant
-    For Each s In sText
-        Ret = Ret & IIf(IsNullOrEmpty(s) = False, s & sSep, "")
+    Dim S As Variant
+    For Each S In sText
+        Ret = Ret & IIf(IsNullOrEmpty(S) = False, S & sSep, "")
     Next
     If Right(Ret, 1) = sSep Then
         Ret = Left(Ret, Len(Ret) - 1)
@@ -1452,9 +1452,9 @@ Function SendWebAPIRequest(ByVal sURL As String, ByVal sType As String, ByVal oH
         Next
     End If
     If sBody <> "" Then
-        oHTTP.send sBody
+        oHTTP.sEnd sBody
     Else
-        oHTTP.send
+        oHTTP.sEnd
     End If
     
     ' 結果取得
