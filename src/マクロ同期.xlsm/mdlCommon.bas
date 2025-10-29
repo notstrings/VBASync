@@ -352,36 +352,36 @@ End Function
 ' ワークシート追加
 Function AddWorkSheet(ByRef oBook As Workbook, ByVal sName As String) As Worksheet
     Dim oRet As Worksheet
-    Set oRet = oBook.Worksheets.Add(After:=oBook.Sheets(oBook.Sheets.Count))
-    oRet.Name = GenUniqSheetName(oBook, sName)  ' 重複しない名称を自動設定
+    Set oRet = oBook.Sheets.Add(After:=oBook.Sheets(oBook.Sheets.Count))
+    oRet.Name = GenUniqSheetName(oBook, sName)                  ' 重複しない名称を自動設定
     Set AddWorkSheet = oRet
 End Function
 
 ' チャートシート追加
 Function AddChartSheet(ByRef oBook As Workbook, ByVal sName As String) As Chart
     Dim oRet As Chart
-    Set oRet = oBook.Charts.Add(After:=oBook.Sheets(oBook.Sheets.Count))
-    oRet.Name = GenUniqSheetName(oBook, sName)  ' 重複しない名称を自動設定
+    Set oRet = oBook.Sheets.Add(After:=oBook.Sheets(oBook.Sheets.Count))
+    oRet.Name = GenUniqSheetName(oBook, sName)                  ' 重複しない名称を自動設定
     Set AddChartSheet = oRet
 End Function
 
 ' ワークシート複写
 Function CopyWorkSheet(ByRef oBook As Workbook, ByRef oSheet As Worksheet, ByVal sName As String) As Worksheet
-    Call oSheet.Copy(After:=oBook.Sheets(oBook.Sheets.Count)) ' 何故かCopyには戻り値が無いため、ブック末尾に固定配置
     Dim oRet As Worksheet
-    Set oRet = oBook.Sheets(oBook.Sheets.Count)
-    oRet.Name = GenUniqSheetName(oBook, sName)  ' 重複しない名称を自動設定
-    oRet.Visible = xlSheetVisible               ' コピー後に不可視はビビるので可視強制
+    Call oSheet.Copy(After:=oBook.Sheets(oBook.Sheets.Count))   ' 戻り値が無いのでブック末尾に固定配置
+    Set oRet = oBook.Sheets(oBook.Sheets.Count)                 ' 戻り値が無いのでブック末尾に固定配置
+    oRet.Name = GenUniqSheetName(oBook, sName)                  ' 重複しない名称を自動設定
+    oRet.Visible = xlSheetVisible                               ' コピー後に不可視では困るので可視強制
     Set CopyWorkSheet = oRet
 End Function
 
 ' チャートシート複写
 Function CopyChartSheet(ByRef oBook As Workbook, ByRef oSheet As Chart, ByVal sName As String) As Chart
-    Call oSheet.Copy(After:=oBook.Sheets(oBook.Sheets.Count)) ' 何故かCopyには戻り値が無いため、ブック末尾に固定配置
     Dim oRet As Chart
-    Set oRet = oBook.Sheets(oBook.Sheets.Count)
-    oRet.Name = GenUniqSheetName(oBook, sName)  ' 重複しない名称を自動設定
-    oRet.Visible = xlSheetVisible               ' コピー後に不可視はビビるので可視強制
+    Call oSheet.Copy(After:=oBook.Sheets(oBook.Sheets.Count))   ' 戻り値が無いのでブック末尾に固定配置
+    Set oRet = oBook.Sheets(oBook.Sheets.Count)                 ' 戻り値が無いのでブック末尾に固定配置
+    oRet.Name = GenUniqSheetName(oBook, sName)                  ' 重複しない名称を自動設定
+    oRet.Visible = xlSheetVisible                               ' コピー後に不可視では困るので可視強制
     Set CopyChartSheet = oRet
 End Function
 
@@ -427,36 +427,13 @@ NrmExit:
 ErrExit:
     Resume NrmExit
 End Function
-Function DelSheetByName(ByRef oBook As Workbook, ByVal sName As String, Optional ByVal bDisableAlarts As Boolean = False) As Boolean
-    Dim bRet As Boolean
-    Dim bOrgAlt As Boolean: bOrgAlt = Application.DisplayAlerts
-On Error GoTo ErrExit:
-    If bDisableAlarts Then
-        Application.DisplayAlerts = False
-    End If
-    Dim elm As Variant
-    For Each elm In oBook.Sheets
-        If elm.Name = sName Then
-            bRet = elm.Delete
-            Exit For
-        End If
-    Next
-NrmExit:
-    If bDisableAlarts Then
-        Application.DisplayAlerts = bOrgAlt
-    End If
-    DelSheetByName = bRet
-    Exit Function
-ErrExit:
-    Resume NrmExit
-End Function
 
 ' シート移動
-Sub MoveSheet(ByRef oBook As Workbook, ByVal sName As String, Optional ByVal bTop As Boolean = True)
+Sub MoveSheet(ByRef oBook As Workbook, ByVal oSheet As Worksheet, Optional ByVal bTop As Boolean = True)
     If bTop Then
-        Call oBook.Sheets(sName).Move(Before:=oBook.Sheets(1))
+        Call oSheet.Move(Before:=oBook.Sheets(1))
     Else
-        Call oBook.Sheets(sName).Move(After:=oBook.Sheets(oBook.Sheets.Count))
+        Call oSheet.Move(After:=oBook.Sheets(oBook.Sheets.Count))
     End If
 End Sub
 
@@ -636,7 +613,7 @@ Private Function coNotRange(ByVal oRange As Range) As Range
     '  □×□
     '  ■■■
     idx = oRange.Item(oRange.Rows.Count, oRange.Columns.Count).Row + 1
-    If idx < Rows.Count Then
+    If idx < oSheet.Rows.Count Then
         Set oResult = UnionRange(oResult, oSheet.Range(oSheet.Rows(idx), oSheet.Rows(oSheet.Rows.Count)))
     End If
     '指定範囲の左側(■の部分)
@@ -653,7 +630,7 @@ Private Function coNotRange(ByVal oRange As Range) As Range
     '  □×■
     '  □□□
     idx = oRange.Item(oRange.Rows.Count, oRange.Columns.Count).Column + 1
-    If idx < Columns.Count Then
+    If idx < oSheet.Columns.Count Then
         Set rng = Intersect(oSheet.Range(oSheet.Columns(idx), oSheet.Columns(oSheet.Columns.Count)), oRange.EntireRow)
         Set oResult = UnionRange(oResult, rng)
     End If
@@ -1051,54 +1028,54 @@ End Function
 
 ' 文字結合(コレクション)
 Function ConcatCollection(ByVal sSep As String, ByVal sText As Collection) As String
-    Dim Ret As String
-    Dim S As Variant
-    For Each S In sText
-        Ret = Ret & S & sSep
+    Dim sRet As String
+    Dim sChr As Variant
+    For Each sChr In sText
+        sRet = sRet & sChr & sSep
     Next
-    If Right(Ret, 1) = sSep Then
-        Ret = Left(Ret, Len(Ret) - 1)
+    If Right(sRet, 1) = sSep Then
+        sRet = Left(sRet, Len(sRet) - 1)
     End If
-    ConcatCollection = Ret
+    ConcatCollection = sRet
 End Function
 
 ' 空文字以外を結合(配列)
 Function PackArray(ByVal sSep As String, ByVal sText As Variant) As String
-    Dim Ret As String
-    Dim S As Variant
-    For Each S In sText
-        Ret = Ret & IIf(IsNullOrEmpty(S) = False, S & sSep, "")
+    Dim sRet As String
+    Dim sChr As Variant
+    For Each sChr In sText
+        sRet = sRet & IIf(IsNullOrEmpty(sChr) = False, sChr & sSep, "")
     Next
-    If Right(Ret, 1) = sSep Then
-        Ret = Left(Ret, Len(Ret) - 1)
+    If Right(sRet, 1) = sSep Then
+        sRet = Left(sRet, Len(sRet) - 1)
     End If
-    PackArray = Ret
+    PackArray = sRet
 End Function
 
 ' 空文字以外を結合(可変長配列)
 Function PackArgs(ByVal sSep As String, ParamArray sText() As Variant) As String
-    Dim Ret As String
-    Dim S As Variant
-    For Each S In sText
-        Ret = Ret & IIf(IsNullOrEmpty(S) = False, S & sSep, "")
+    Dim sRet As String
+    Dim sChr As Variant
+    For Each sChr In sText
+        sRet = sRet & IIf(IsNullOrEmpty(sChr) = False, sChr & sSep, "")
     Next
-    If Right(Ret, 1) = sSep Then
-        Ret = Left(Ret, Len(Ret) - 1)
+    If Right(sRet, 1) = sSep Then
+        sRet = Left(sRet, Len(sRet) - 1)
     End If
-    PackArgs = Ret
+    PackArgs = sRet
 End Function
 
 ' 空文字以外を結合(コレクション)
 Function PackCollection(ByVal sSep As String, ByVal sText As Collection) As String
-    Dim Ret As String
-    Dim S As Variant
-    For Each S In sText
-        Ret = Ret & IIf(IsNullOrEmpty(S) = False, S & sSep, "")
+    Dim sRet As String
+    Dim sChr As Variant
+    For Each sChr In sText
+        sRet = sRet & IIf(IsNullOrEmpty(sChr) = False, sChr & sSep, "")
     Next
-    If Right(Ret, 1) = sSep Then
-        Ret = Left(Ret, Len(Ret) - 1)
+    If Right(sRet, 1) = sSep Then
+        sRet = Left(sRet, Len(sRet) - 1)
     End If
-    PackCollection = Ret
+    PackCollection = sRet
 End Function
 
 ' 左端指定文字消去
@@ -1168,8 +1145,8 @@ Function YY(ByVal oDate As Date) As String
 End Function
 
 ' 月2桁
-Function mm(ByVal oDate As Date) As String
-    mm = Format(oDate, "MM")
+Function MM(ByVal oDate As Date) As String
+    MM = Format(oDate, "MM")
 End Function
 
 ' 日2桁
@@ -1183,12 +1160,12 @@ Function FinancialYear(ByVal oDate As Date) As String
 End Function
 
 ' 半期(ピリオド)
-Function p(ByVal oDate As Date, Optional ByVal s1H As String = "T1", Optional ByVal s2H As String = "T2") As String
-    p = IIf(Month(oDate) >= 4 And Month(oDate) <= 9, s1H, s2H)
+Function FinancialPeriod(ByVal oDate As Date, Optional ByVal s1H As String = "T1", Optional ByVal s2H As String = "T2") As String
+    FinancialPeriod = IIf(Month(oDate) >= 4 And Month(oDate) <= 9, s1H, s2H)
 End Function
 
 ' 四半期(クォータ)
-Function q(ByVal oDate As Date, Optional ByVal s1Q As String = "Q1", Optional ByVal s2Q As String = "Q2", Optional ByVal s3Q As String = "Q3", Optional ByVal s4Q As String = "Q4") As String
+Function FinancialQuarter(ByVal oDate As Date, Optional ByVal s1Q As String = "Q1", Optional ByVal s2Q As String = "Q2", Optional ByVal s3Q As String = "Q3", Optional ByVal s4Q As String = "Q4") As String
     Dim sRet As String
     Select Case Format(DateAdd("m", -3, oDate), "Q")
         Case 1: sRet = s1Q
@@ -1196,7 +1173,7 @@ Function q(ByVal oDate As Date, Optional ByVal s1Q As String = "Q1", Optional By
         Case 3: sRet = s3Q
         Case 4: sRet = s4Q
     End Select
-    q = sRet
+    FinancialQuarter = sRet
 End Function
 
 ' 期間内判定
@@ -1213,58 +1190,6 @@ Public Function NZ(ByVal Value As Variant, Optional ByVal IsNullValue As Variant
     End If
 End Function
 
-' レーベンシュタイン距離比率
-Function LevenshteinRatio(ByVal sLhs As String, ByVal sRhs As String) As Double
-    LevenshteinRatio = 1# - CDbl(LevenshteinDistance(sLhs, sRhs) / Max(Len(sLhs), Len(sRhs)))
-End Function
-
-' レーベンシュタイン距離(≒文字列の類似度計算)
-Function LevenshteinDistance(ByVal sLhs As String, ByVal sRhs As String) As Long
-    Dim lLhs As Long
-    Dim lRhs As Long
-    Dim aLhs() As String
-    Dim aRhs() As String
-    lLhs = Len(sLhs)
-    lRhs = Len(sRhs)
-    ReDim d(lLhs, lRhs)
-    ReDim aLhs(lLhs)
-    ReDim aRhs(lRhs)
-
-    Dim n As Long
-    For n = 1 To lLhs
-        aLhs(n - 1) = Mid(sLhs, n, 1)
-    Next
-    For n = 1 To lRhs
-        aRhs(n - 1) = Mid(sRhs, n, 1)
-    Next
-
-    Dim i As Long
-    Dim j As Long
-    For i = 0 To lLhs
-        d(i, 0) = i
-        For j = 1 To lRhs
-            d(i, j) = 0
-        Next
-    Next
-    For j = 0 To lRhs
-        d(0, j) = j
-    Next
-
-    Dim cost As Long
-    For i = 1 To lLhs
-        For j = 1 To lRhs
-            If aLhs(i - 1) = aRhs(j - 1) Then
-                cost = 0
-            Else
-                cost = 1
-            End If
-            d(i, j) = Min(d(i - 1, j) + 1, d(i, j - 1) + 1, d(i - 1, j - 1) + cost)
-        Next
-    Next
-
-    LevenshteinDistance = d(lLhs, lRhs)
-End Function
-
 ' // 配列操作 /////////////////////////////////////////////
 
 ' 指定値で埋められた任意長の配列を生成
@@ -1276,6 +1201,28 @@ Function Arrays(ByVal lNum As Long, ByVal vVal As Variant) As Variant
         vRet(idx) = vVal
     Next
     Arrays = vRet
+End Function
+
+' ２次元配列から１次元配列をスライス(行方向)
+Function SliceArrayRow(ByVal vVal As Variant, ByVal lRow As Long) As Variant
+    Dim vRet() As Variant
+    ReDim vRet(LBound(vVal, 2) To UBound(vVal, 2))
+    Dim idx As Long
+    For idx = LBound(vVal, 2) To UBound(vVal, 2)
+        vRet(idx) = vVal(lRow, idx)
+    Next
+    SliceArrayRow = vRet
+End Function
+
+' ２次元配列から１次元配列をスライス(列方向)
+Function SliceArrayCol(ByVal vVal As Variant, ByVal lCol As Long) As Variant
+    Dim vRet() As Variant
+    ReDim vRet(LBound(vVal, 1) To UBound(vVal, 1))
+    Dim idx As Long
+    For idx = LBound(vVal, 1) To UBound(vVal, 1)
+        vRet(idx) = vVal(idx, lCol)
+    Next
+    SliceArrayCol = vRet
 End Function
 
 ' // ハイパーリンク操作 ///////////////////////////////////
@@ -1369,7 +1316,6 @@ Sub SetSearchLink(ByRef oRange As Range, ByVal sTextToDisplay As String, ByVal s
 End Sub
 
 ' // コメント操作 /////////////////////////////////////////
-' // ・Excelのコメント文字装飾(部分色付け等)にはバグがあるため、書式については踏み込まない
 
 ' コメント設定
 Sub SetComment(ByRef oRange As Range, ByVal sText As String, Optional ByVal bShow As Boolean = True)
@@ -1400,6 +1346,7 @@ Sub AutoFitComment(ByRef oSheet As Worksheet)
 End Sub
 
 ' // ピボットテーブル操作 /////////////////////////////////
+' ・とりあえず最低限
 
 ' ピボットテーブル検索
 Function SearchPivotTable(ByVal oSheet As Worksheet, ByVal sName As String) As PivotTable
@@ -1410,6 +1357,20 @@ Function SearchPivotTable(ByVal oSheet As Worksheet, ByVal sName As String) As P
         End If
     Next
     Set SearchPivotTable = elm
+End Function
+
+' // クエリ操作 ///////////////////////////////////////////
+' ・とりあえず最低限
+
+' クエリ検索
+Function SearchWorkbookQuery(ByVal oBook As Workbook, ByVal sName As String) As WorkbookQuery
+    Dim elm As WorkbookQuery
+    For Each elm In oBook.Queries
+        If elm.Name Like sName Then
+            Exit For
+        End If
+    Next
+    Set SearchWorkbookQuery = elm
 End Function
 
 ' // WebService /////////////////////////////////////////////
@@ -1433,6 +1394,9 @@ Private Function CreateHTTP(Optional ByVal lTimeout As Long = 5000) As Object
     If oHTTP Is Nothing Then
         Set oHTTP = CreateObject("MSXML2.ServerXMLHTTP")
     End If
+    If oHTTP.readyState <> 0 Then
+        oHTTP.abort
+    End If
     Call oHTTP.SetTimeOuts(lTimeout, lTimeout, lTimeout, lTimeout)
     Set CreateHTTP = oHTTP
 End Function
@@ -1452,38 +1416,195 @@ Function SendWebAPIRequest(ByVal sURL As String, ByVal sType As String, ByVal oH
         Next
     End If
     If sBody <> "" Then
-        oHTTP.sEnd sBody
+        oHTTP.send sBody
     Else
-        oHTTP.sEnd
+        oHTTP.send
     End If
     
     ' 結果取得
-    Dim sResult As String
-    If oHTTP.Status = 200 Then
-        sResult = oHTTP.responseText
-    End If
-    
-    SendWebAPIRequest = sResult
-End Function
-
-Function EncodeURL(ByVal sText As String) As String
-    If Val(Application.Version) >= 15 Then
-        EncodeURL = WorksheetFunction.EncodeURL(sText)
+    Dim sRet As String
+    If oHTTP.Status >= 200 And oHTTP.Status <= 299 Then
+        sRet = oHTTP.responseText
     Else
-        ' ※64bit版Excelでは動かない
-        With CreateObject("ScriptControl")
-            .Language = "JScript"
-            EncodeURL = .CodeObject.encodeURIComponent(sText)
-        End With
+        Debug.Print "SendWebAPIRequest ERR:" & sURL
+        Debug.Print "SendWebAPIRequest ERR:" & oHTTP.Status
+        Debug.Print "SendWebAPIRequest ERR:" & oHTTP.responseText
+        sRet = "HTTP ERROR:" & oHTTP.Status
     End If
+    SendWebAPIRequest = sRet
 End Function
 
-Function DecodeURL(ByVal sText As String) As String
-    ' ※64bit版Excelでは動かない
-    With CreateObject("ScriptControl")
-        .Language = "JScript"
-        DecodeURL = .CodeObject.decodeURIComponent(sText)
-    End With
+Function IsWebAPISuccess(ByVal sText As String) As Boolean
+    Dim bRet As Boolean
+    bRet = True
+    If sText <> "" Then
+        If Split(sText, ":")(0) = "HTTP ERROR" Then
+            bRet = False
+        End If
+    End If
+    IsWebAPISuccess = bRet
 End Function
 
+'Function EncodeURL(ByVal sText As String) As String
+'    If Val(Application.Version) >= 15 Then
+'        EncodeURL = WorksheetFunction.EncodeURL(sText)
+'    Else
+'        ' ※64bit版Excelでは動かない
+'        With CreateObject("ScriptControl")
+'            .Language = "JScript"
+'            EncodeURL = .CodeObject.encodeURIComponent(sText)
+'        End With
+'    End If
+'End Function
 
+'------------------------------------------------------------------------------
+' Function: EncodeURL
+' Author: Jeremy Varnham
+' GistURL: https://gist.github.com/jvarn/5e11b1fd741b5f79d8a516c9c2368f17
+' Version: 1.1.0
+' Date: 22 August 2024
+' Description: Encodes a string into a URL-encoded format, supporting ASCII, Unicode, and UTF-8 encoding.
+' Parameters:
+'   - txt: The string to encode.
+' Returns:
+'   - The URL-encoded string.
+'------------------------------------------------------------------------------
+Function EncodeURL(ByRef txt As String) As String
+    ' Declare and initialize variables
+    Dim buffer As String
+    Dim i As Long, c As Long, n As Long
+    
+    ' Initialize the buffer with enough space for the encoded string
+    buffer = String$(Len(txt) * 12, "%")
+    
+    ' Loop through each character in the input string
+    For i = 1 To Len(txt)
+        ' Get the character code for the current character
+        c = AscW(Mid$(txt, i, 1)) And 65535
+        
+        ' Determine if the character needs to be encoded or can be left as is
+        Select Case c
+            Case 48 To 57, 65 To 90, 97 To 122, 45, 46, 95  ' Unescaped characters: 0-9, A-Z, a-z, - . _ '
+                n = n + 1
+                Mid$(buffer, n) = ChrW(c) ' Add the character to the buffer
+            Case Is <= 127            ' Escaped UTF-8 1 byte (U+0000 to U+007F) '
+                n = n + 3
+                Mid$(buffer, n - 2) = "%" ' Add the percent symbol
+                Mid$(buffer, n - 1) = Right$("0" & Hex$(c), 2) ' Add the hex representation
+            Case Is <= 2047           ' Escaped UTF-8 2 bytes (U+0080 to U+07FF) '
+                n = n + 6
+                Mid$(buffer, n - 5) = "%" ' Add the percent symbol
+                Mid$(buffer, n - 4) = Right$("0" & Hex$(192 + (c \ 64)), 2) ' Add the first byte of the encoded character
+                Mid$(buffer, n - 2) = "%" ' Add the percent symbol
+                Mid$(buffer, n - 1) = Right$("0" & Hex$(128 + (c Mod 64)), 2) ' Add the second byte of the encoded character
+            Case 55296 To 57343       ' Escaped UTF-8 4 bytes (U+010000 to U+10FFFF) '
+                i = i + 1
+                c = 65536 + (c Mod 1024) * 1024 + (AscW(Mid$(txt, i, 1)) And 1023)
+                n = n + 12
+                Mid$(buffer, n - 11) = "%" ' Add the percent symbol
+                Mid$(buffer, n - 10) = Right$("0" & Hex$(240 + (c \ 262144)), 2) ' Add the first byte
+                Mid$(buffer, n - 8) = "%" ' Add the percent symbol
+                Mid$(buffer, n - 7) = Right$("0" & Hex$(128 + ((c \ 4096) Mod 64)), 2) ' Add the second byte
+                Mid$(buffer, n - 5) = "%" ' Add the percent symbol
+                Mid$(buffer, n - 4) = Right$("0" & Hex$(128 + ((c \ 64) Mod 64)), 2) ' Add the third byte
+                Mid$(buffer, n - 2) = "%" ' Add the percent symbol
+                Mid$(buffer, n - 1) = Right$("0" & Hex$(128 + (c Mod 64)), 2) ' Add the fourth byte
+            Case Else                 ' Escaped UTF-8 3 bytes (U+0800 to U+FFFF) '
+                n = n + 9
+                Mid$(buffer, n - 8) = "%" ' Add the percent symbol
+                Mid$(buffer, n - 7) = Right$("0" & Hex$(224 + (c \ 4096)), 2) ' Add the first byte
+                Mid$(buffer, n - 5) = "%" ' Add the percent symbol
+                Mid$(buffer, n - 4) = Right$("0" & Hex$(128 + ((c \ 64) Mod 64)), 2) ' Add the second byte
+                Mid$(buffer, n - 2) = "%" ' Add the percent symbol
+                Mid$(buffer, n - 1) = Right$("0" & Hex$(128 + (c Mod 64)), 2) ' Add the third byte
+        End Select
+    Next
+    
+    ' Trim the buffer to the actual length of the encoded string
+    EncodeURL = Left$(buffer, n)
+End Function
+
+'Function DecodeURL(ByVal sText As String) As String
+'    ' ※64bit版Excelでは動かない
+'    With CreateObject("ScriptControl")
+'        .Language = "JScript"
+'        DecodeURL = .CodeObject.decodeURIComponent(sText)
+'    End With
+'End Function
+
+'------------------------------------------------------------------------------
+' Function: DecodeURL
+' Author: Jeremy Varnham
+' GistURL: https://gist.github.com/jvarn/5e11b1fd741b5f79d8a516c9c2368f17
+' Version: 1.1.0
+' Date: 22 August 2024
+' Description: Decodes a URL-encoded string, supporting ASCII, Unicode, and UTF-8 encoding.
+' Parameters:
+'   - strIn: The URL-encoded string to decode.
+' Returns:
+'   - The decoded string.
+'------------------------------------------------------------------------------
+Function DecodeURL(ByVal strIn As String) As String
+    ' Declare and initialize variables
+    Dim sl As Long, tl As Long
+    Dim key As String, kl As Long
+    Dim hh As String, hi As String, hl As String
+    Dim a As Long
+    
+    ' Set the key to look for the percent symbol used in URL encoding
+    key = "%"
+    kl = Len(key)
+    sl = 1: tl = 1
+
+    ' Find the first occurrence of the key (percent symbol) in the input string
+    sl = InStr(sl, strIn, key, vbTextCompare)
+    
+    ' Loop through the input string until no more percent symbols are found
+    Do While sl > 0
+        ' Add unprocessed characters to the result
+        If (tl = 1 And sl <> 1) Or tl < sl Then
+            DecodeURL = DecodeURL & Mid(strIn, tl, sl - tl)
+        End If
+        
+        ' Determine the type of encoding (Unicode, UTF-8, or ASCII) and decode accordingly
+        Select Case UCase(Mid(strIn, sl + kl, 1))
+            Case "U"    ' Unicode URL encoding (e.g., %uXXXX)
+                a = Val("&H" & Mid(strIn, sl + kl + 1, 4)) ' Convert hex to decimal
+                DecodeURL = DecodeURL & ChrW(a) ' Convert decimal to character
+                sl = sl + 6 ' Move to the next character after the encoded sequence
+            Case "E"    ' UTF-8 URL encoding (e.g., %EXXX)
+                hh = Mid(strIn, sl + kl, 2) ' Get the first two hex digits
+                a = Val("&H" & hh) ' Convert hex to decimal
+                If a < 128 Then
+                    sl = sl + 3 ' Move to the next character
+                    DecodeURL = DecodeURL & Chr(a) ' Convert to ASCII character
+                Else
+                    ' For multibyte UTF-8 characters
+                    hi = Mid(strIn, sl + 3 + kl, 2) ' Get the next two hex digits
+                    hl = Mid(strIn, sl + 6 + kl, 2) ' Get the final two hex digits
+                    a = ((Val("&H" & hh) And &HF) * 2 ^ 12) Or ((Val("&H" & hi) And &H3F) * 2 ^ 6) Or (Val("&H" & hl) And &H3F)
+                    DecodeURL = DecodeURL & ChrW(a) ' Convert to a wide character
+                    sl = sl + 9 ' Move to the next character after the encoded sequence
+                End If
+            Case Else    ' Standard ASCII URL encoding (e.g., %XX)
+                hh = Mid(strIn, sl + kl, 2) ' Get the two hex digits
+                a = Val("&H" & hh) ' Convert hex to decimal
+                If a < 128 Then
+                    sl = sl + 3 ' Move to the next character
+                Else
+                    hi = Mid(strIn, sl + 3 + kl, 2) ' Get the next two hex digits
+                    a = ((Val("&H" & hh) - 194) * 64) + Val("&H" & hi) ' Convert to a character code
+                    sl = sl + 6 ' Move to the next character after the encoded sequence
+                End If
+                DecodeURL = DecodeURL & ChrW(a) ' Convert to a wide character
+        End Select
+        
+        ' Update the position of the last processed character
+        tl = sl
+        ' Find the next occurrence of the percent symbol
+        sl = InStr(sl, strIn, key, vbTextCompare)
+    Loop
+    
+    ' Append any remaining characters after the last percent symbol
+    DecodeURL = DecodeURL & Mid(strIn, tl)
+End Function

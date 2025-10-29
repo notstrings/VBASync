@@ -25,11 +25,6 @@ Option Private Module
 '        Debug.Print GetTableBodyCell(oTable, lRow, "列名").Text         ' 列名不正で例外
 '        Debug.Print GetTableBodyCellSafe(oTable, lRow, "列名").Text     ' 列名不正でNothing
 '    Next
-'    For lRow = 1 To GetTableBodyRowCnt(oTable)                          ' 行数
-'        Dim oRng As Range
-'        Set oRng = GetTableBodyRowRng(oTable, lRow)                     ' 行範囲取得の場合は範囲添字が一次元
-'        Debug.Print oRng(GetTableColIdx(oTable, "列名"))                ' 行範囲取得の場合は範囲添字が一次元
-'    Next
 '    Dim oRng As Variant
 '    oRng = GetTableBodyRng(oTable)                                      ' 全体取得
 '    Debug.Print oRng(1, GetTableColIdx(oTable, "列名"))                 ' テーブル座標系
@@ -50,6 +45,19 @@ Option Private Module
 '    GetTableBodyRng(oTable)(lr, lc) = "aaa"                             ' 位置指定アクセス
 'End Sub
 
+'■何かの結果行を追加していく方法
+'Sub sample()
+'    Dim oTable As ListObject
+'    Set oTable = GetTable(ThisWorkbook.ActiveSheet)
+'    If oTable Is Nothing Then Exit Sub                                  ' テーブルがないので終了
+'    For li = 0 To 10
+'        With AddTableRow(oDataTable)
+'            .Range(GetTableColIdx(oDataTable, "列名A")) = "AAA"         ' 列名A
+'            .Range(GetTableColIdx(oDataTable, "列名B")) = "BBB"         ' 列名B
+'        End With
+'    Next
+'End Sub
+
 ' // テーブル全体 /////////////////////////////////////////////////////////////
 
 ' テーブル作成
@@ -61,14 +69,37 @@ Function AddTable(ByVal oSheet As Worksheet, ByVal oRange As Range, Optional ByV
     End If
     Set AddTable = oRet
 End Function
+
+' テーブル作成(RDB結果取得用)
 Function AddTableWithRecordset(ByVal oSheet As Worksheet, ByVal oRange As Range, ByVal oSrcRecordset As Object, Optional ByVal sName As String = "") As ListObject
     Dim oRet As ListObject
     Set oRet = oSheet.ListObjects.Add(SourceType:=xlSrcQuery, source:=oSrcRecordset, LinkSource:=False, XlListObjectHasHeaders:=xlYes, Destination:=oRange)
     If sName <> "" Then
         oRet.Name = sName
     End If
-    Call oRet.QueryTable.Refresh
+    With oRet.QueryTable
+        Call .Refresh(False)
+    End With
     Set AddTableWithRecordset = oRet
+End Function
+
+' テーブル作成(PowerQuery結果取得用)
+Function AddTableWithQuery(ByVal oSheet As Worksheet, ByVal oRange As Range, ByVal oSrcQuery As WorkbookQuery, Optional ByVal sName As String = "") As ListObject
+    Dim oRet As ListObject
+    Set oRet = oSheet.ListObjects.Add( _
+        SourceType:=xlSrcExternal, _
+        source:="OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location=" & oSrcQuery.Name & ";Extended Properties="""";", _
+        Destination:=oRange _
+    )
+    If sName <> "" Then
+        oRet.Name = sName
+    End If
+    With oRet.QueryTable
+        .CommandType = xlCmdSql
+        .CommandText = Array("SELECT * FROM [" & oSrcQuery.Name & "]")
+        Call .Refresh(False)
+    End With
+    Set AddTableWithQuery = oRet
 End Function
 
 ' テーブル削除
@@ -111,7 +142,12 @@ End Function
 
 ' テーブル範囲リサイズ
 Sub ExtendTableRng(ByVal oListObject As ListObject, ByVal lTop As Long, ByVal lLeft As Long, ByVal lBottom As Long, lRight)
-    Call oListObject.Resize(ExtendRange(oListObject.Range, lTop, lLeft, lBottom, lRight))
+    Call oListObject.Resize( _
+        oListObject.Range.offset(-lTop, -lLeft).Resize( _
+            oListObject.Range.Rows.Count + lTop + lBottom, _
+            oListObject.Range.Columns.Count + lLeft + lRight _
+        ) _
+    )
 End Sub
 
 ' // テーブル列操作 ///////////////////////////////////////////////////////////
@@ -268,7 +304,7 @@ End Function
 Function GetTableHeaderCellbyCell(ByVal oListObject As ListObject, ByVal oCell As Range) As Range
     Dim oRet As Range
     If Not oListObject.HeaderRowRange Is Nothing Then
-        Set oRet = IntersectRange(oListObject.HeaderRowRange, oCell.EntireColumn)
+        Set oRet = Intersect(oListObject.HeaderRowRange, oCell.EntireColumn)
     End If
     Set GetTableHeaderCellbyCell = oRet
 End Function
@@ -311,7 +347,7 @@ End Function
 Function GetTableFooterCellbyElm(ByVal oListObject As ListObject, ByVal oCell As Range) As Range
     Dim oRet As Range
     If Not oListObject.TotalsRowRange Is Nothing Then
-        Set oRet = IntersectRange(oListObject.TotalsRowRange, oCell.EntireColumn)
+        Set oRet = Intersect(oListObject.TotalsRowRange, oCell.EntireColumn)
     End If
     Set GetTableFooterCellbyElm = oRet
 End Function
@@ -343,7 +379,9 @@ End Function
 
 ' データ範囲クリップ
 Function ClipTableBodyRange(ByVal oListObject As ListObject, ByVal oRange As Range) As Range
-    Set ClipTableBodyRange = IntersectRange(oListObject.DataBodyRange, oRange)
+    If Not oListObject.DataBodyRange Is Nothing Then
+        Set ClipTableBodyRange = Intersect(oListObject.DataBodyRange, oRange)
+    End If
 End Function
 
 ' データ部全体＝構造化参照：Range("テーブル名[#Data]")
@@ -393,6 +431,13 @@ End Function
 ' 　結果的に探索対象セルの値が数値型100の場合に文字列型"100"を探索しても型の不一致で検出できない事に注意
 
 ' ルックアップ(キャッシュなし)
+'      Sch     Ret
+' | A | B | C | D | E |
+' |---|---|---|---|---|
+' |   | | |   |   |   |
+' |   | v |   |   |   |
+' |   |VAL|-->|RET|   |
+' |   |   |   |   |   |
 Function LookupTableBody(ByVal oListObject As ListObject, ByVal sSearchCol As String, ByVal sResultCol As String, ByVal vSearchVal As Variant) As Variant
     Dim vRet As Variant
     Dim vValues As Variant
@@ -408,6 +453,13 @@ Function LookupTableBody(ByVal oListObject As ListObject, ByVal sSearchCol As St
 End Function
 
 ' ルックアップ(キャッシュあり)
+'      Sch     Ret
+' | A | B | C | D | E |
+' |---|---|---|---|---|
+' |   | | |   |   |   |
+' |   | v |   |   |   |
+' |   |VAL|-->|RET|   |
+' |   |   |   |   |   |
 Function LookupTableBodyDictGen(ByVal oListObject As ListObject, ByVal sMainColKey As String) As Object
     Dim oRet As Object
     Set oRet = CreateObject("Scripting.Dictionary")
@@ -465,7 +517,7 @@ Function GetTableFilterRowCnt(ByVal oListObject As ListObject) As Long
     ' ヘッダ行がある場合はヘッダを含んだ列全体の表示セル数-1を行数とすればいい
     ' ヘッダ行がない場合は残念だが頑張って手動カウントしなくてはならない
     Dim lRet As Long
-    If Not oListObject.DataBodyRange Is Nothing Then
+    If Not oListObject.HeaderRowRange Is Nothing Then
         lRet = oListObject.AutoFilter.Range.Columns(1).SpecialCells(xlCellTypeVisible).Count - 1
     Else
         Dim elm As ListRow
@@ -533,4 +585,3 @@ End Sub
 Sub ClrTableRClickMenu()
     Call Application.CommandBars("List Range Popup").Reset
 End Sub
-

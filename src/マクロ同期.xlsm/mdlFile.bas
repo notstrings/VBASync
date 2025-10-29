@@ -640,7 +640,7 @@ Function ChooseSimilarFile(ByVal sPath As String, ByVal sName As String, ByVal s
     Dim oFile
     For Each oFile In CreateFSO().GetFolder(sPath).Files
         If oFile.Path Like sPtrn Then
-            dVal = LevenshteinRatio(sName, CreateFSO().GetBaseName(oFile.Path))
+            dVal = LevenshteinRatio(UCase(sName), UCase(CreateFSO().GetBaseName(oFile.Path)))
             If dMax > dVal And dVal > dThr Then
                 dMax = dVal
                 sRet = oFile.Path
@@ -658,7 +658,7 @@ Function ChooseSimilarFolder(ByVal sPath As String, ByVal sName As String, ByVal
     Dim oFolder
     For Each oFolder In CreateFSO().GetFolder(sPath).Folders
         If oFolder.Path Like sPtrn Then
-            dVal = LevenshteinRatio(sName, CreateFSO().GetBaseName(oFolder.Path))
+            dVal = LevenshteinRatio(UCase(sName), UCase(CreateFSO().GetBaseName(oFolder.Path)))
             If dMax > dVal And dVal > dThr Then
                 dMax = dVal
                 sRet = oFolder.Path
@@ -666,6 +666,58 @@ Function ChooseSimilarFolder(ByVal sPath As String, ByVal sName As String, ByVal
         End If
     Next
     ChooseSimilarFolder = sRet
+End Function
+
+' レーベンシュタイン距離比率
+Private Function LevenshteinRatio(ByVal sLhs As String, ByVal sRhs As String) As Double
+    LevenshteinRatio = 1# - CDbl(LevenshteinDistance(sLhs, sRhs) / WorksheetFunction.Max(Len(sLhs), Len(sRhs)))
+End Function
+
+' レーベンシュタイン距離(≒文字列の類似度計算)
+Private Function LevenshteinDistance(ByVal sLhs As String, ByVal sRhs As String) As Long
+    Dim lLhs As Long
+    Dim lRhs As Long
+    Dim aLhs() As String
+    Dim aRhs() As String
+    lLhs = Len(sLhs)
+    lRhs = Len(sRhs)
+    ReDim d(lLhs, lRhs)
+    ReDim aLhs(lLhs)
+    ReDim aRhs(lRhs)
+
+    Dim n As Long
+    For n = 1 To lLhs
+        aLhs(n - 1) = Mid(sLhs, n, 1)
+    Next
+    For n = 1 To lRhs
+        aRhs(n - 1) = Mid(sRhs, n, 1)
+    Next
+
+    Dim i As Long
+    Dim j As Long
+    For i = 0 To lLhs
+        d(i, 0) = i
+        For j = 1 To lRhs
+            d(i, j) = 0
+        Next
+    Next
+    For j = 0 To lRhs
+        d(0, j) = j
+    Next
+
+    Dim cost As Long
+    For i = 1 To lLhs
+        For j = 1 To lRhs
+            If aLhs(i - 1) = aRhs(j - 1) Then
+                cost = 0
+            Else
+                cost = 1
+            End If
+            d(i, j) = WorksheetFunction.Min(d(i - 1, j) + 1, d(i, j - 1) + 1, d(i - 1, j - 1) + cost)
+        Next
+    Next
+
+    LevenshteinDistance = d(lLhs, lRhs)
 End Function
 
 ' ファイル選択ダイアログ
