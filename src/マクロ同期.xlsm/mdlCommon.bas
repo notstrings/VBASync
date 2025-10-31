@@ -578,6 +578,44 @@ Function ExtendRange(ByVal oRange As Range, ByVal lTop As Long, ByVal lLeft As L
     Set ExtendRange = oRange.offset(-lTop, -lLeft).Resize(oRange.Rows.Count + lTop + lBottom, oRange.Columns.Count + lLeft + lRight)
 End Function
 
+' セル結合を考慮した行拡張
+Function EntireRowEx(ByVal oSheet As Worksheet, ByVal oRange As Range) As Range
+    Dim oResult As Range
+    Set oResult = oRange.EntireRow
+    If Not Intersect(oResult, oSheet.UsedRange) Is Nothing Then
+        Do
+            Dim sPrev As String
+            Dim sCrnt As String
+            sPrev = oResult.Address
+            Dim elm As Range
+            For Each elm In Intersect(oResult.EntireRow, oSheet.UsedRange)
+                Set oResult = Union(oResult, elm.MergeArea.EntireRow)
+            Next
+            sCrnt = oResult.Address
+        Loop While sPrev <> sCrnt
+    End If
+    Set EntireRowEx = oResult
+End Function
+
+' セル結合を考慮した列拡張
+Function EntireColumnEx(ByVal oSheet As Worksheet, ByVal oRange As Range) As Range
+    Dim oResult As Range
+    Set oResult = oRange.EntireColumn
+    If Not Intersect(oResult, oSheet.UsedRange) Is Nothing Then
+        Do
+            Dim sPrev As String
+            Dim sCrnt As String
+            sPrev = oResult.Address
+            Dim elm As Range
+            For Each elm In Intersect(oResult.EntireColumn, oSheet.UsedRange)
+                Set oResult = Union(oResult, elm.MergeArea.EntireColumn)
+            Next
+            sCrnt = oResult.Address
+        Loop While sPrev <> sCrnt
+    End If
+    Set EntireColumnEx = oResult
+End Function
+
 ' 範囲補集合
 Function NotRange(ByVal oRange As Range, Optional ByVal oSheet As Worksheet = Nothing) As Range
     Dim oResult As Range
