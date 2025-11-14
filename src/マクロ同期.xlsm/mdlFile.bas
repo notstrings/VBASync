@@ -10,19 +10,42 @@ Option Private Module
 ' // 20240401:ChooseSimilarFile/ChooseSimilarFolder修正
 ' //          ByVal/ByRefや戻り値の型指定を徹底
 ' // 20251010:コマンド存在チェック追加
+' // 20251114:億劫だったAPI宣言の修正を実施
 
 ' CreateDirectory用
-Private Declare PtrSafe Function SHCreateDirectoryEx Lib "shell32" Alias "SHCreateDirectoryExW" (ByVal hWnd As Long, ByVal pszPath As LongPtr, ByVal psa As Long) As Long
+Private Declare PtrSafe Function SHCreateDirectoryEx Lib "shell32" Alias "SHCreateDirectoryExW" ( _
+    ByVal hWnd As LongPtr, _
+    ByVal pszPath As LongPtr, _
+    ByVal psa As LongPtr _
+) As Long
 
 ' PathRelativePathTo用
-Private Declare PtrSafe Function PathRelativePathTo Lib "Shlwapi" Alias "PathRelativePathToW" (ByVal pszPath As LongPtr, ByVal pszFrom As LongPtr, ByVal dwAttrFrom As Long, ByVal pszTo As LongPtr, ByVal dwAttrTo As Long) As Long
+Private Declare PtrSafe Function PathRelativePathTo Lib "Shlwapi" Alias "PathRelativePathToW" ( _
+    ByVal pszPath As LongPtr, _
+    ByVal pszFrom As LongPtr, _
+    ByVal dwAttrFrom As Long, _
+    ByVal pszTo As LongPtr, _
+    ByVal dwAttrTo As Long _
+) As Long
 Private Const FILE_ATTRIBUTE_DIRECTORY As Integer = &H10
 Private Const FILE_ATTRIBUTE_NORMAL  As Integer = &H80
 
 ' FindFirst*用
-Private Declare PtrSafe Function FindFirstFileEx Lib "kernel32" Alias "FindFirstFileExW" (ByVal lpFileName As LongPtr, ByVal fInfoLevelId As FINDEX_INFO_LEVELS, lpFindFileData As WIN32_FIND_DATA, ByVal fSearchOp As FINDEX_SEARCH_OPS, ByVal lpSearchFilter As LongPtr, ByVal dwAdditionalFlags As Long) As LongPtr
-Private Declare PtrSafe Function FindNextFile Lib "kernel32" Alias "FindNextFileW" (ByVal hFindFile As LongPtr, lpFindFileData As WIN32_FIND_DATA) As LongPtr
-Private Declare PtrSafe Function FindClose Lib "kernel32" (ByVal hFindFile As LongPtr) As LongPtr
+Private Declare PtrSafe Function FindFirstFileEx Lib "kernel32" Alias "FindFirstFileExW" ( _
+    ByVal lpFileName As LongPtr, _
+    ByVal fInfoLevelId As FINDEX_INFO_LEVELS, _
+    lpFindFileData As WIN32_FIND_DATA, _
+    ByVal fSearchOp As FINDEX_SEARCH_OPS, _
+    ByVal lpSearchFilter As LongPtr, _
+    ByVal dwAdditionalFlags As Long _
+) As LongPtr
+Private Declare PtrSafe Function FindNextFile Lib "kernel32" Alias "FindNextFileW" ( _
+    ByVal hFindFile As LongPtr, _
+    lpFindFileData As WIN32_FIND_DATA _
+) As Long
+Private Declare PtrSafe Function FindClose Lib "kernel32" ( _
+    ByVal hFindFile As LongPtr _
+) As Long
 Private Const INVALID_HANDLE_VALUE = -1
 Private Enum FINDEX_INFO_LEVELS
     FindExInfoStandard = 0&
@@ -55,17 +78,20 @@ Private Type WIN32_FIND_DATA
     cAlternateFileName(14 * 2 - 1)          As Byte     ' 8.3形式のファイル名
 End Type
 
-' URLDownloadToFile用
-Private Declare PtrSafe Function URLDownloadToFile Lib "urlmon" Alias "URLDownloadToFileA" (ByVal pCaller As Long, ByVal szURL As String, ByVal szFileName As String, ByVal dwReserved As Long, ByVal lpfnCB As Long) As Long
+' StrCmpLogicalW用
+Declare PtrSafe Function StrCmpLogicalW Lib "SHLWAPI.DLL" ( _
+    ByVal lpStr1 As LongPtr, _
+    ByVal lpStr2 As LongPtr _
+) As Long
 
 ' Ini用
-Private Declare Function WritePrivateProfileString Lib "kernel32" Alias "WritePrivateProfileStringA" ( _
+Private Declare PtrSafe Function WritePrivateProfileString Lib "kernel32" Alias "WritePrivateProfileStringA" ( _
     ByVal lpApplicationName As String, _
     ByVal lpKeyName As Any, _
     ByVal lpString As Any, _
     ByVal lpFileName As String _
 ) As Long
-Private Declare Function GetPrivateProfileString Lib "kernel32" Alias "GetPrivateProfileStringA" ( _
+Private Declare PtrSafe Function GetPrivateProfileString Lib "kernel32" Alias "GetPrivateProfileStringA" ( _
     ByVal lpApplicationName As String, _
     ByVal lpKeyName As Any, _
     ByVal lpDefault As String, _
@@ -245,7 +271,7 @@ End Function
 ' 相対パス取得
 Function GetRelPath(ByVal sBasePath As String, ByVal sSpecPath As String) As String
     Dim sBuff As String
-    sBuff = String(255, Chr(0))
+    sBuff = String$(260, vbNullChar)
     If PathRelativePathTo(StrPtr(sBuff), StrPtr(sBasePath), FILE_ATTRIBUTE_DIRECTORY, StrPtr(sSpecPath), 0) Then
         GetRelPath = Left(sBuff, InStr(sBuff, Chr(0)) - 1)
     Else
@@ -596,6 +622,40 @@ On Error GoTo ErrExit
 ErrExit:
     If hFind <> INVALID_HANDLE_VALUE Then Call FindClose(hFind)
     Set EnumFolder = oRet
+End Function
+
+' 自然順(論理順)ソート
+Public Function SortCollectionLogical(ByRef oCollection As Collection) As Collection
+    Dim oRet As New Collection
+    
+    Dim i As Long
+    Dim j As Long
+
+    ' Collection→配列
+    Dim vArr() As Variant
+    ReDim vArr(1 To oCollection.Count)
+    For i = 1 To oCollection.Count
+        vArr(i) = oCollection(i)
+    Next
+    
+    ' 自然順ソート
+    Dim tmp As Variant
+    For i = LBound(vArr) To UBound(vArr)
+        For j = i To UBound(vArr)
+            If StrCmpLogicalW(StrPtr(vArr(i)), StrPtr(vArr(j))) > 0 Then
+                Let tmp = vArr(i)
+                Let vArr(i) = vArr(j)
+                Let vArr(j) = tmp
+            End If
+       Next
+    Next
+
+    ' 配列→Collection
+    For i = 1 To UBound(vArr)
+        Call oRet.Add(vArr(i))
+    Next
+    
+    Set SortCollectionLogical = oRet
 End Function
 
 ' 指定したパス＋パターンでパスを補完する
@@ -1020,12 +1080,20 @@ End Function
 
 ' ダウンロード
 Function DownloadFile(ByVal sDLSrc As String, ByVal sDLDst As String) As Long
-    Dim lRet As Long
-    lRet = URLDownloadToFile(0, sDLSrc, sDLDst, 0, 0)
-    If lRet = 0 Then
-        Do Until IsExistFile(sDLDst) = True
-            DoEvents
-        Loop
+    Dim lRet As Long: lRet = -1
+    Dim pHTTP As Object
+    Set pHTTP = CreateObject("WinHttp.WinHttpRequest.5.1")
+    Call pHTTP.Open("GET", sDLSrc, False)
+    Call pHTTP.Send
+    If pHTTP.Status = 200 Then
+        Dim pStrm As Object
+        Set pStrm = CreateObject("ADODB.Stream")
+        pStrm.Type = 1
+        Call pStrm.Open
+        Call pStrm.Write(pHTTP.responseBody)
+        Call pStrm.SaveToFile(sDLDst, 2)
+        Call pStrm.Close
+        lRet = 0
     End If
     DownloadFile = lRet
 End Function
@@ -1039,4 +1107,3 @@ End Function
 Function ExtractArchive(ByVal sSrcPath As String, ByVal sDstPath As String) As Long
     ExtractArchive = RunPsh("Expand-Archive -Path " & sSrcPath & " -DestinationPath " & sDstPath & " -Force")
 End Function
-

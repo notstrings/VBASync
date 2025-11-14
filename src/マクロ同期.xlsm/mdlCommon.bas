@@ -25,10 +25,10 @@ Option Private Module
 ' //          WebService用改めWebAPI用処理各種改修
 ' //          ByVal/ByRefや戻り値の型指定を徹底
 ' // 20251009:正規表現ライブラリ差し替え＆ライセンス的に微妙なので分離
+' // 20251114:億劫だったAPI宣言の修正を実施
+' //         :衝突しがちな算術計算関数の名称を修正
 
 Public Const csELPtrn As String = "[" & vbCr & vbLf & "]"   ' TrimEx用
-
-Public Declare PtrSafe Function GetAsyncKeyState Lib "User32.dll" (ByVal vKey As Long) As Integer
 
 ' // 共用 /////////////////////////////////////////////////
 
@@ -977,38 +977,38 @@ End Sub
 ' // 数値操作 /////////////////////////////////////////////
 
 ' 最小値
-Function Min(ParamArray oVals() As Variant) As Variant
-    Min = WorksheetFunction.Min(oVals)
+Function WSMin(ParamArray oVals() As Variant) As Variant
+    WSMin = WorksheetFunction.Min(oVals)
 End Function
 
 ' 最大値
-Function Max(ParamArray oVals() As Variant) As Variant
-    Max = WorksheetFunction.Max(oVals)
+Function WSMax(ParamArray oVals() As Variant) As Variant
+    WSMax = WorksheetFunction.Max(oVals)
 End Function
 
 ' 平均値
-Function Ave(ParamArray oVals() As Variant) As Variant
-    Ave = WorksheetFunction.Average(oVals)
+Function WSAve(ParamArray oVals() As Variant) As Variant
+    WSAve = WorksheetFunction.Average(oVals)
 End Function
 
 ' 標準偏差
-Function StDev(ParamArray oVals() As Variant) As Variant
-    StDev = WorksheetFunction.StDev(oVals)
+Function WSStDev(ParamArray oVals() As Variant) As Variant
+    WSStDev = WorksheetFunction.StDev(oVals)
 End Function
 
 ' 四捨五入
-Function Round(ByVal vVal As Variant, ByVal lDigit As Long) As Variant
-    Round = WorksheetFunction.Round(vVal, lDigit) ' VBAな素のRoundメソッドは銀行型丸め。一般的な四捨五入はこっち。
+Function WSRound(ByVal vVal As Variant, ByVal lDigit As Long) As Variant
+    WSRound = WorksheetFunction.Round(vVal, lDigit) ' VBAな素のRoundメソッドは銀行型丸め。一般的な四捨五入はこっち。
 End Function
 
 ' 切り捨て
-Function RoundDown(ByVal vVal As Variant, ByVal lDigit As Long) As Variant
-    RoundDown = WorksheetFunction.RoundDown(vVal, lDigit)
+Function WSRoundDown(ByVal vVal As Variant, ByVal lDigit As Long) As Variant
+    WSRoundDown = WorksheetFunction.RoundDown(vVal, lDigit)
 End Function
 
 ' 切り上げ
-Function RoundUp(ByVal vVal As Variant, ByVal lDigit As Long) As Variant
-    RoundUp = WorksheetFunction.RoundUp(vVal, lDigit)
+Function WSRoundUp(ByVal vVal As Variant, ByVal lDigit As Long) As Variant
+    WSRoundUp = WorksheetFunction.RoundUp(vVal, lDigit)
 End Function
 
 ' 数値範囲制限
@@ -1454,9 +1454,9 @@ Function SendWebAPIRequest(ByVal sURL As String, ByVal sType As String, ByVal oH
         Next
     End If
     If sBody <> "" Then
-        oHTTP.send sBody
+        oHTTP.Send sBody
     Else
-        oHTTP.send
+        oHTTP.Send
     End If
     
     ' 結果取得
@@ -1585,17 +1585,17 @@ End Function
 Function DecodeURL(ByVal strIn As String) As String
     ' Declare and initialize variables
     Dim sl As Long, tl As Long
-    Dim key As String, kl As Long
+    Dim Key As String, kl As Long
     Dim hh As String, hi As String, hl As String
     Dim a As Long
     
     ' Set the key to look for the percent symbol used in URL encoding
-    key = "%"
-    kl = Len(key)
+    Key = "%"
+    kl = Len(Key)
     sl = 1: tl = 1
 
     ' Find the first occurrence of the key (percent symbol) in the input string
-    sl = InStr(sl, strIn, key, vbTextCompare)
+    sl = InStr(sl, strIn, Key, vbTextCompare)
     
     ' Loop through the input string until no more percent symbols are found
     Do While sl > 0
@@ -1640,7 +1640,7 @@ Function DecodeURL(ByVal strIn As String) As String
         ' Update the position of the last processed character
         tl = sl
         ' Find the next occurrence of the percent symbol
-        sl = InStr(sl, strIn, key, vbTextCompare)
+        sl = InStr(sl, strIn, Key, vbTextCompare)
     Loop
     
     ' Append any remaining characters after the last percent symbol

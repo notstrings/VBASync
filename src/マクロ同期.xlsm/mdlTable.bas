@@ -557,9 +557,9 @@ Sub AddTableSort(ByVal oListObject As ListObject, ByVal sColumn As String, Optio
     ' ・CustomOrderに即値文字列以外を指定すると実行時エラーになる
     ' ・CustomOrder指定無しのつもりで空文字指定すると実行時エラーになる
     If sCustomOrder = "" Then
-        Call oListObject.Sort.SortFields.Add(key:=oListObject.ListColumns(sColumn).Range, SortOn:=lSortOn, Order:=lOrder, DataOption:=lDataOption)
+        Call oListObject.Sort.SortFields.Add(Key:=oListObject.ListColumns(sColumn).Range, SortOn:=lSortOn, Order:=lOrder, DataOption:=lDataOption)
     Else
-        Call oListObject.Sort.SortFields.Add(key:=oListObject.ListColumns(sColumn).Range, SortOn:=lSortOn, Order:=lOrder, CustomOrder:=CStr(sCustomOrder), DataOption:=lDataOption)
+        Call oListObject.Sort.SortFields.Add(Key:=oListObject.ListColumns(sColumn).Range, SortOn:=lSortOn, Order:=lOrder, CustomOrder:=CStr(sCustomOrder), DataOption:=lDataOption)
     End If
 End Sub
 
